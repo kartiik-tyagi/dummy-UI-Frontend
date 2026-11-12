@@ -20,6 +20,12 @@ import { useSessionStore } from '../features/session/useSessionStore'
 const format = new GeoJSON()
 const projection = { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' }
 
+const SERVICE_COLORS = {
+  air: '#5aa6d6',
+  naval: '#2aa8a0',
+  army: '#6b7a3a',
+}
+
 function withAlpha(hex, opacity) {
   const value = Math.round(Math.min(1, Math.max(0, Number(opacity) || 0)) * 255)
     .toString(16)
@@ -116,6 +122,8 @@ export function MapWorkbench({ map }) {
   const setPending = useDirectoryStore((state) => state.setPending)
   const setMeasure = useDirectoryStore((state) => state.setMeasure)
   const select = useDirectoryStore((state) => state.select)
+  const openContextMenu = useDirectoryStore((state) => state.openContextMenu)
+  const closeContextMenu = useDirectoryStore((state) => state.closeContextMenu)
   const commit = useCommit()
   const userId = useSessionStore((state) => state.session?.profile?.id)
   const home = useSessionStore((state) => state.session?.mapView)
@@ -132,6 +140,31 @@ export function MapWorkbench({ map }) {
       if (basemap) map.removeLayer(basemap)
     }
   }, [map, data?.settings?.source, data?.settings?.osmUrl])
+
+  useEffect(() => {
+    if (!map) return undefined
+    const target = map.getTargetElement()
+    if (!target) return undefined
+    const onContextMenu = (event) => {
+      event.preventDefault()
+      const pixel = map.getEventPixel(event)
+      const coordinate = map.getCoordinateFromPixel(pixel)
+      if (!coordinate) return
+      const [longitude, latitude] = toLonLat(coordinate)
+      openContextMenu({
+        open: true,
+        x: event.clientX,
+        y: event.clientY,
+        longitude,
+        latitude,
+      })
+    }
+    target.addEventListener('contextmenu', onContextMenu)
+    return () => {
+      target.removeEventListener('contextmenu', onContextMenu)
+      closeContextMenu()
+    }
+  }, [map, openContextMenu, closeContextMenu])
 
   useEffect(() => {
     if (!map || !data?.settings) return
@@ -192,16 +225,18 @@ export function MapWorkbench({ map }) {
     } else {
       for (const feature of data.features) {
         if (feature.featureType === 'unit' && !data.showTeams) continue
+        const isComponent = feature.featureType === 'component'
+        const isPoint = feature.featureType === 'unit' || isComponent
         addFeature(
           source,
           {
             ...feature,
             collection: 'feature',
-            label: feature.name,
-            color: teamColor(feature.teamId),
+            label: feature.name || feature.properties?.kind || '',
+            color: isComponent ? SERVICE_COLORS[feature.properties?.service] || data.marks.objective : teamColor(feature.teamId),
             opacity: feature.featureType === 'zone' ? 0.25 : 0,
           },
-          feature.featureType === 'unit' ? 'point' : 'area',
+          isPoint ? 'point' : 'area',
         )
       }
       if (data.replay?.positions?.length) {

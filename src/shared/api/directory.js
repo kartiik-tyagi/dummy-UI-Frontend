@@ -485,6 +485,34 @@ export function createFeature(userId, draft) {
   return snapshot(userId)
 }
 
+export function createComponent(userId, draft) {
+  const access = requireUser(userId)
+  const name = requireName(draft?.name, 'component.rejected')
+  const kind = String(draft?.kind || '').trim()
+  const service = String(draft?.service || '').trim()
+  if (!kind) fail('component.rejected', { userId }, 'Choose a component.', 'VALIDATION')
+  if (!['air', 'naval', 'army'].includes(service)) fail('component.rejected', { userId }, 'Choose Air, Naval, or Army.', 'VALIDATION')
+  if (draft?.geometry?.type !== 'Point' || !Array.isArray(draft.geometry.coordinates)) {
+    fail('component.rejected', { userId }, 'The map position is incomplete.', 'VALIDATION')
+  }
+  const feature = {
+    id: nextId('component'),
+    name,
+    featureType: 'component',
+    layerId: 'components',
+    teamId: '',
+    geometry: clone(draft.geometry),
+    properties: {
+      kind,
+      service,
+      ...(draft.properties && typeof draft.properties === 'object' ? clone(draft.properties) : {}),
+    },
+  }
+  features = [...features, feature]
+  logger.info('component.created', { userId: access.userId, featureId: feature.id, kind, service })
+  return snapshot(userId)
+}
+
 export function updateFeature(userId, featureId, patch) {
   requireUser(userId)
   const feature = features.find((item) => item.id === featureId)

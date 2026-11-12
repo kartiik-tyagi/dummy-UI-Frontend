@@ -1,0 +1,132 @@
+{
+  "menus": [
+    {
+      "id": "air",
+      "label": "Air",
+      "items": [
+        {
+          "id": "airbase",
+          "label": "Airbase",
+          "kind": "airbase",
+          "service": "air",
+          "fields": [
+            { "id": "name", "label": "Name", "type": "text", "required": true },
+            { "id": "icao", "label": "ICAO code", "type": "text", "required": true },
+            { "id": "runways", "label": "Runways", "type": "number", "min": 1 },
+            { "id": "aircraftTypes", "label": "Aircraft types", "type": "text" },
+            { "id": "status", "label": "Status", "type": "select", "options": ["Open", "Limited", "Closed"], "required": true }
+          ]
+        },
+        {
+          "id": "radar-site",
+          "label": "Radar site",
+          "kind": "radar-site",
+          "service": "air",
+          "fields": [
+            { "id": "name", "label": "Name", "type": "text", "required": true },
+            { "id": "coverageKm", "label": "Coverage (km)", "type": "number", "min": 1 },
+            { "id": "band", "label": "Band", "type": "select", "options": ["L", "S", "C", "X"], "required": true },
+            { "id": "status", "label": "Status", "type": "select", "options": ["Active", "Standby", "Offline"], "required": true }
+          ]
+        },
+        {
+          "id": "helipad",
+          "label": "Helipad",
+          "kind": "helipad",
+          "service": "air",
+          "fields": [
+            { "id": "name", "label": "Name", "type": "text", "required": true },
+            { "id": "pads", "label": "Pads", "type": "number", "min": 1 },
+            { "id": "nightCapable", "label": "Night capable", "type": "select", "options": ["Yes", "No"], "required": true },
+            { "id": "status", "label": "Status", "type": "select", "options": ["Open", "Limited", "Closed"], "required": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "naval",
+      "label": "Naval",
+      "items": [
+        {
+          "id": "port",
+          "label": "Port",
+          "kind": "port",
+          "service": "naval",
+          "fields": [
+            { "id": "name", "label": "Name", "type": "text", "required": true },
+            { "id": "berths", "label": "Berths", "type": "number", "min": 1 },
+            { "id": "draftM", "label": "Max draft (m)", "type": "number", "min": 1 },
+            { "id": "fuel", "label": "Fuel available", "type": "select", "options": ["Yes", "Limited", "No"], "required": true },
+            { "id": "status", "label": "Status", "type": "select", "options": ["Open", "Restricted", "Closed"], "required": true }
+          ]
+        },
+        {
+          "id": "anchorage",
+          "label": "Anchorage",
+          "kind": "anchorage",
+          "service": "naval",
+          "fields": [
+            { "id": "name", "label": "Name", "type": "text", "required": true },
+            { "id": "capacity", "label": "Ship capacity", "type": "number", "min": 1 },
+            { "id": "depthM", "label": "Depth (m)", "type": "number", "min": 1 },
+            { "id": "status", "label": "Status", "type": "select", "options": ["Open", "Limited", "Closed"], "required": true }
+          ]
+        },
+        {
+          "id": "naval-base",
+          "label": "Naval base",
+          "kind": "naval-base",
+          "service": "naval",
+          "fields": [
+            { "id": "name", "label": "Name", "type": "text", "required": true },
+            { "id": "docks", "label": "Docks", "type": "number", "min": 1 },
+            { "id": "repair", "label": "Repair capability", "type": "select", "options": ["Full", "Limited", "None"], "required": true },
+            { "id": "status", "label": "Status", "type": "select", "options": ["Active", "Standby", "Closed"], "required": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "army",
+      "label": "Army",
+      "items": [
+        {
+          "id": "barracks",
+          "label": "Barracks",
+          "kind": "barracks",
+          "service": "army",
+          "fields": [
+            { "id": "name", "label": "Name", "type": "text", "required": true },
+            { "id": "capacity", "label": "Personnel capacity", "type": "number", "min": 1 },
+            { "id": "unitType", "label": "Unit type", "type": "select", "options": ["Infantry", "Armour", "Artillery", "Engineers", "Mixed"], "required": true },
+            { "id": "status", "label": "Status", "type": "select", "options": ["Occupied", "Ready", "Empty"], "required": true }
+          ]
+        },
+        {
+          "id": "depot",
+          "label": "Supply depot",
+          "kind": "depot",
+          "service": "army",
+          "fields": [
+            { "id": "name", "label": "Name", "type": "text", "required": true },
+            { "id": "stores", "label": "Primary store", "type": "select", "options": ["Ammunition", "Fuel", "Rations", "Medical", "Mixed"], "required": true },
+            { "id": "tonnage", "label": "Capacity (t)", "type": "number", "min": 1 },
+            { "id": "status", "label": "Status", "type": "select", "options": ["Stocked", "Low", "Empty"], "required": true }
+          ]
+        },
+        {
+          "id": "checkpoint",
+          "label": "Checkpoint",
+          "kind": "checkpoint",
+          "service": "army",
+          "fields": [
+            { "id": "name", "label": "Name", "type": "text", "required": true },
+            { "id": "route", "label": "Route / axis", "type": "text", "required": true },
+            { "id": "control", "label": "Control", "type": "select", "options": ["Friendly", "Joint", "Hostile", "None"], "required": true },
+            { "id": "status", "label": "Status", "type": "select", "options": ["Open", "Held", "Bypassed"], "required": true }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -26,6 +26,8 @@ export const useDirectoryStore = create((set, get) => ({
   selectedId: null,
   entityOpen: false,
   graphicQuery: { layer: '', phase: '' },
+  contextMenu: null,
+  componentDraft: null,
   async load(userId) {
     const data = await api.loadWorkbench(userId)
     apply(set, get, data)
@@ -46,6 +48,8 @@ export const useDirectoryStore = create((set, get) => ({
       measure: '',
       selectedId: null,
       entityOpen: false,
+      contextMenu: null,
+      componentDraft: null,
     })
   },
   async run(work) {
@@ -87,6 +91,18 @@ export const useDirectoryStore = create((set, get) => ({
   },
   setGraphicQuery(patch) {
     set({ graphicQuery: { ...get().graphicQuery, ...patch } })
+  },
+  openContextMenu(contextMenu) {
+    set({ contextMenu, componentDraft: null })
+  },
+  closeContextMenu() {
+    set({ contextMenu: null })
+  },
+  openComponentDraft(componentDraft) {
+    set({ contextMenu: null, componentDraft })
+  },
+  closeComponentDraft() {
+    set({ componentDraft: null })
   },
 }))
 

@@ -247,6 +247,7 @@ export {
   addComment,
   closeReplay,
   connectStream,
+  createComponent,
   createFeature,
   createGraphic,
   deleteCatalogue,
