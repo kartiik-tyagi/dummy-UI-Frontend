@@ -378,8 +378,17 @@ export function snapshot(userId) {
 
   if (!remote) return base
   // Users, teams, roles, themes and swatches come from the backend once it has been read.
-  const { users, teams, roles, swatches: remoteSwatches, themeChoices, featureCatalog, directoryThemes, access: grants } = remote
-  return { ...base, users, teams, roles, swatches: remoteSwatches, themeChoices, featureCatalog, directoryThemes, grants }
+  return {
+    ...base,
+    users: remote.users,
+    teams: remote.teams,
+    roles: remote.roles,
+    swatches: remote.swatches,
+    themeChoices: remote.themeChoices,
+    featureCatalog: remote.featureCatalog,
+    directoryThemes: remote.directoryThemes,
+    grants: remote.access,
+  }
 }
 
 export function subscribeWorkbench(userId, onChange) {
