@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, Avatar, Box, Button, Stack, Typography } from '@mui/material'
+import { Alert, Avatar, Box, Button, Stack, TextField, Typography } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -7,7 +7,6 @@ import { getLoginContext, login } from '../../shared/api/client'
 import { ErrorState } from '../../shared/ui/ErrorState'
 import { LoadingState } from '../../shared/ui/LoadingState'
 import { PasswordField } from '../../shared/ui/PasswordField'
-import { PositionSelect } from '../../shared/ui/PositionSelect'
 import { useSessionStore } from '../session/useSessionStore'
 
 function Fact({ label, value }) {
@@ -60,7 +59,7 @@ export default function LoginPage() {
   }
 
   const data = context.data
-  const selected = data.users.find((user) => user.id === userId)
+  const selected = data.users.find((user) => user.id.toLowerCase() === userId.trim().toLowerCase())
 
   return (
     <Box
@@ -134,8 +133,8 @@ export default function LoginPage() {
                 </Typography>
               </Box>
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                <Fact label="Active scenario" value={data.activeScenarioName || 'None'} />
-                <Fact label="Active game" value={data.gameOpen ? data.activeGameName : 'None active'} />
+                <Fact label="Active scenario" value={data.activeScenarioName || 'Shown after sign in'} />
+                <Fact label="Active game" value={data.activeGameName || 'Shown after sign in'} />
               </Box>
               {selected ? (
                 <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
@@ -150,7 +149,16 @@ export default function LoginPage() {
                   </Box>
                 </Stack>
               ) : null}
-              <PositionSelect users={data.users} value={userId} onChange={setUserId} />
+              <TextField
+                required
+                fullWidth
+                autoFocus
+                label="User name"
+                value={userId}
+                onChange={(event) => setUserId(event.target.value)}
+                autoComplete="username"
+                slotProps={{ htmlInput: { autoCapitalize: 'off', spellCheck: false } }}
+              />
               <PasswordField value={password} onChange={setPassword} />
               {notice ? (
                 <Alert severity="warning" onClose={clearNotice}>

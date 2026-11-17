@@ -21,6 +21,7 @@ import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import AnchorOutlinedIcon from '@mui/icons-material/AnchorOutlined'
 import FlightOutlinedIcon from '@mui/icons-material/FlightOutlined'
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 
 const ICONS = {
   layers: LayersOutlinedIcon,
@@ -47,6 +48,7 @@ const ICONS = {
   flag: FlagOutlinedIcon,
   anchor: AnchorOutlinedIcon,
   flight: FlightOutlinedIcon,
+  orbat: AccountTreeOutlinedIcon,
 }
 
 export function NavIcon({ name }) {

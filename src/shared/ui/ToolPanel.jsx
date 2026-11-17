@@ -21,6 +21,7 @@ const TITLES = {
   zones: 'Zones',
   routes: 'Routes',
   directory: 'Users and teams',
+  orbat: 'ORBAT',
   flags: 'Features',
 }
 

@@ -6,8 +6,8 @@ export function ToolDock({ panel, onClose, edge = 'end' }) {
   return (
     <Box
       sx={{
-        width: { xs: '100%', md: 300 },
-        height: { xs: 240, md: '100%' },
+        width: { xs: '100%', md: panel === 'orbat' ? 'min(760px, 60vw)' : 300 },
+        height: { xs: panel === 'orbat' ? 420 : 240, md: '100%' },
         flexShrink: 0,
         minHeight: 0,
         display: 'flex',

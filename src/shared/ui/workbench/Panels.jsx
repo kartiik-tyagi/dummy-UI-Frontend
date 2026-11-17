@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Box, Button, List, ListItemButton, ListItemText, MenuItem, Slider, Stack, TextField, Typography } from '@mui/material'
+import { Box, Button, Checkbox, FormControlLabel, List, ListItemButton, ListItemText, MenuItem, Slider, Stack, TextField, Typography } from '@mui/material'
 import dayjs from 'dayjs'
 import * as api from '../../../shared/api/client'
 import { useCommit, useDirectoryStore } from '../../../features/directory/useDirectoryStore'
@@ -10,6 +10,10 @@ import { FilterList } from '../FilterList'
 import { ExerciseControls } from '../ExerciseControls'
 import { LoadingState } from '../LoadingState'
 import { EMPTY_LIST } from '../../lib/empty'
+import { FeatureCodes, hasFeature } from '../../auth/featureCodes'
+import { canOpenOrbat } from '../../auth/access'
+import OrbatPanel from '../../../features/orbat/OrbatPanel'
+import { IconField } from '../IconPicker'
 
 function Caption({ children }) {
   return (
@@ -63,6 +67,7 @@ export function PanelBody({ panel }) {
   if (panel === 'zones') return <Catalogue kind="zone" />
   if (panel === 'routes') return <Catalogue kind="route" />
   if (panel === 'directory') return <DirectoryPanel />
+  if (panel === 'orbat') return <OrbatGate />
   if (panel === 'flags') return <FlagPanel />
   return <Caption>This panel is not available.</Caption>
 }
@@ -569,15 +574,29 @@ function ChoiceField({ label, value, onChange, options, selfId, teams }) {
   )
 }
 
-function TeamEditor({ team, swatches, themes, teams }) {
+function TeamEditor({ team, swatches, themes, teams, canEdit }) {
   const commit = useCommit()
-  const [draft, setDraft] = useState({ swatchId: team.swatchId, themeId: team.themeId })
+  const [draft, setDraft] = useState({ name: team.name, swatchId: team.swatchId, themeId: team.themeId, icon: team.icon })
+  const [confirming, setConfirming] = useState(false)
   useEffect(() => {
-    setDraft({ swatchId: team.swatchId, themeId: team.themeId })
-  }, [team.swatchId, team.themeId])
+    setDraft({ name: team.name, swatchId: team.swatchId, themeId: team.themeId, icon: team.icon })
+  }, [team.name, team.swatchId, team.themeId, team.icon])
+  const kind = team.kind === 'alliance' ? 'alliance' : 'country'
+  if (!canEdit) {
+    return (
+      <Typography variant="body2">
+        {team.name} <Caption>{kind}</Caption>
+      </Typography>
+    )
+  }
   return (
     <Stack spacing={1}>
-      <Typography variant="body2">{team.name}</Typography>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: team.colour || 'action.disabledBackground', flexShrink: 0 }} aria-hidden />
+        <Typography variant="body2" sx={{ flex: 1 }}>{team.name}</Typography>
+        <Caption>{kind}</Caption>
+      </Stack>
+      <TextField size="small" label="Name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
       <ChoiceField
         label="Map colour"
         value={draft.swatchId}
@@ -594,125 +613,193 @@ function TeamEditor({ team, swatches, themes, teams }) {
         teams={teams}
         onChange={(event) => setDraft({ ...draft, themeId: event.target.value })}
       />
+      <IconField value={draft.icon} onChange={(icon) => setDraft({ ...draft, icon })} />
       <Stack direction="row" spacing={1}>
-        <Button
-          size="small"
-          onClick={() =>
-            commit((userId) =>
-              api.saveTeam(userId, {
-                id: team.id,
-                name: team.name,
-                icon: team.icon,
-                swatchId: draft.swatchId,
-                themeId: draft.themeId,
-              }),
-            )
-          }
-        >
+        <Button size="small" onClick={() => commit((userId) => api.saveTeam(userId, { id: team.id, ...draft }))}>
           Save
         </Button>
-        <Button size="small" onClick={() => commit((userId) => api.deleteTeam(userId, team.id))}>
+        <Button size="small" color="error" onClick={() => setConfirming(true)}>
           Remove
         </Button>
       </Stack>
+      <ConfirmDialog
+        open={confirming}
+        title="Remove team"
+        message={`Remove ${team.name}? Its ORBATs and members are affected.`}
+        confirmLabel="Remove"
+        onClose={() => setConfirming(false)}
+        onConfirm={() => commit((userId) => api.deleteTeam(userId, team.id)).then(() => setConfirming(false)).catch(() => setConfirming(false))}
+      />
+    </Stack>
+  )
+}
+
+function UserRow({ item, roles, teams, canEdit }) {
+  const commit = useCommit()
+  const [password, setPassword] = useState('')
+  return (
+    <Stack spacing={1}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <Typography variant="body2" sx={{ flex: 1, opacity: item.active ? 1 : 0.55 }}>{item.title}</Typography>
+        <Caption>{item.active ? item.role || 'No role' : 'Inactive'}</Caption>
+      </Stack>
+      {canEdit && !item.protected ? (
+        <>
+          <TextField
+            select
+            size="small"
+            label="Roles"
+            value={item.roleIds}
+            onChange={(event) => commit((userId) => api.saveUser(userId, { id: item.id, roleIds: event.target.value }))}
+            slotProps={{ select: { multiple: true } }}
+          >
+            {roles.map((role) => (
+              <MenuItem key={role.id} value={role.numericId}>{role.name}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Administers team"
+            value={item.teamId || ''}
+            onChange={(event) => commit((userId) => api.assignUserTeam(userId, item.id, event.target.value))}
+          >
+            {teams.map((entry) => (
+              <MenuItem key={entry.id} value={entry.id}>{entry.name}</MenuItem>
+            ))}
+          </TextField>
+          <Stack direction="row" spacing={1}>
+            <TextField size="small" type="password" label="New password" value={password} onChange={(event) => setPassword(event.target.value)} sx={{ flex: 1 }} />
+            <Button
+              size="small"
+              disabled={password.length < 3}
+              onClick={() => commit((userId) => api.saveUser(userId, { id: item.id, password })).then(() => setPassword(''))}
+            >
+              Set
+            </Button>
+          </Stack>
+          <Button
+            size="small"
+            color={item.active ? 'error' : 'primary'}
+            onClick={() => commit((userId) => api.saveUser(userId, { id: item.id, active: !item.active }))}
+          >
+            {item.active ? 'Deactivate' : 'Activate'}
+          </Button>
+        </>
+      ) : null}
+      {item.protected ? <Caption>APEX is the protected administrator.</Caption> : null}
+    </Stack>
+  )
+}
+
+function RoleEditor({ role, catalog, canEdit }) {
+  const commit = useCommit()
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState({ name: role.name, featureIds: role.featureIds })
+  useEffect(() => {
+    setDraft({ name: role.name, featureIds: role.featureIds })
+  }, [role.name, role.featureIds])
+  const toggle = (id) =>
+    setDraft((current) => ({
+      ...current,
+      featureIds: current.featureIds.includes(id) ? current.featureIds.filter((item) => item !== id) : [...current.featureIds, id],
+    }))
+  return (
+    <Stack spacing={0.5}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <Typography variant="body2" sx={{ flex: 1 }}>{role.name}</Typography>
+        <Caption>{role.code}</Caption>
+        {canEdit ? <Button size="small" onClick={() => setOpen(!open)}>{open ? 'Close' : 'Edit'}</Button> : null}
+      </Stack>
+      {canEdit && open ? (
+        <Stack spacing={0.5}>
+          <TextField size="small" label="Name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+          {catalog.map((feature) => (
+            <FormControlLabel
+              key={feature.id}
+              label={feature.name}
+              control={<Checkbox size="small" checked={draft.featureIds.includes(feature.id)} onChange={() => toggle(feature.id)} />}
+              sx={{ m: 0, '& .MuiFormControlLabel-label': { fontSize: 13 } }}
+            />
+          ))}
+          <Stack direction="row" spacing={1}>
+            <Button size="small" onClick={() => commit((userId) => api.saveRole(userId, { id: role.id, ...draft })).then(() => setOpen(false))}>Save</Button>
+            <Button size="small" color="error" onClick={() => commit((userId) => api.deleteRole(userId, role.id))}>Remove</Button>
+          </Stack>
+        </Stack>
+      ) : null}
     </Stack>
   )
 }
 
 function DirectoryPanel() {
   const data = useDirectoryStore((state) => state.data)
+  const features = useSessionStore((state) => state.session?.features)
   const commit = useCommit()
-  const [user, setUser] = useState({ newId: '', title: '', role: 'Theatre picture', service: 'Joint', teamId: '' })
-  const [team, setTeam] = useState({ newId: '', name: '', swatchId: '', themeId: '', icon: 'shield' })
+  const [team, setTeam] = useState({ name: '', swatchId: '', themeId: '', icon: '' })
   const [role, setRole] = useState({ newId: '', name: '' })
   if (!data) return null
+  const canUsers = hasFeature(features, FeatureCodes.MANAGE_USERS)
+  const canTeams = hasFeature(features, FeatureCodes.MANAGE_TEAMS)
+  const canRoles = hasFeature(features, FeatureCodes.MANAGE_ROLES)
   const swatches = data.swatches ?? EMPTY_LIST
   const themes = data.themeChoices ?? EMPTY_LIST
+  const catalog = data.featureCatalog ?? EMPTY_LIST
+  if (!canUsers && !canTeams && !canRoles && !hasFeature(features, FeatureCodes.MANAGE_THEMES)) {
+    return <Caption>Your role does not include administration.</Caption>
+  }
   return (
     <Stack spacing={2}>
-      <Typography variant="subtitle2">Users</Typography>
-      {data.users.map((item) => (
-        <Stack key={item.id} spacing={1}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Typography variant="body2" sx={{ flex: 1 }}>{item.title}</Typography>
-            <Caption>{item.role}</Caption>
-            {item.id !== 'apex' ? <Button size="small" onClick={() => commit((userId) => api.deleteUser(userId, item.id))}>Remove</Button> : null}
-          </Stack>
-          {item.id === 'apex' ? (
-            <Caption>No team. APEX chooses a personal theme.</Caption>
-          ) : (
-            <TextField
-              select
-              size="small"
-              label="Team"
-              value={item.teamId || ''}
-              onChange={(event) => commit((userId) => api.assignUserTeam(userId, item.id, event.target.value))}
-            >
-              {data.teams.map((entry) => (
-                <MenuItem key={entry.id} value={entry.id}>{entry.name}</MenuItem>
-              ))}
-            </TextField>
-          )}
-        </Stack>
-      ))}
-      <TextField size="small" label="User id" value={user.newId} onChange={(event) => setUser({ ...user, newId: event.target.value })} />
-      <TextField size="small" label="Title" value={user.title} onChange={(event) => setUser({ ...user, title: event.target.value })} />
-      <TextField size="small" label="Role" value={user.role} onChange={(event) => setUser({ ...user, role: event.target.value })} />
-      <TextField size="small" label="Service" value={user.service} onChange={(event) => setUser({ ...user, service: event.target.value })} />
-      <TextField select size="small" label="Team" value={user.teamId} onChange={(event) => setUser({ ...user, teamId: event.target.value })}>
-        <MenuItem value="">Choose</MenuItem>
-        {data.teams.map((entry) => (
-          <MenuItem key={entry.id} value={entry.id}>{entry.name}</MenuItem>
-        ))}
-      </TextField>
-      <Button
-        disabled={!user.teamId}
-        onClick={() => commit((userId) => api.saveUser(userId, user)).then(() => setUser({ ...user, newId: '', title: '', teamId: '' }))}
-      >
-        Add user
-      </Button>
+      {canUsers ? (
+        <>
+          <Typography variant="subtitle2">Users</Typography>
+          <Caption>
+            New users are created from an ORBAT node{hasFeature(features, FeatureCodes.MARK_AS_USER) ? ' (ORBAT, then Mark as user)' : ''}.
+          </Caption>
+          {data.users.map((item) => (
+            <UserRow key={item.id} item={item} roles={data.roles} teams={data.teams} canEdit={canUsers} />
+          ))}
+        </>
+      ) : null}
       <Typography variant="subtitle2">Teams</Typography>
       {data.teams.map((item) => (
-        <TeamEditor key={item.id} team={item} swatches={swatches} themes={themes} teams={data.teams} />
+        <TeamEditor key={item.id} team={item} swatches={swatches} themes={themes} teams={data.teams} canEdit={canTeams} />
       ))}
-      <TextField size="small" label="Team id" value={team.newId} onChange={(event) => setTeam({ ...team, newId: event.target.value })} />
-      <TextField size="small" label="Team name" value={team.name} onChange={(event) => setTeam({ ...team, name: event.target.value })} />
-      <ChoiceField
-        label="Map colour"
-        value={team.swatchId}
-        options={swatches}
-        selfId=""
-        teams={data.teams}
-        onChange={(event) => setTeam({ ...team, swatchId: event.target.value })}
-      />
-      <ChoiceField
-        label="Theme"
-        value={team.themeId}
-        options={themes}
-        selfId=""
-        teams={data.teams}
-        onChange={(event) => setTeam({ ...team, themeId: event.target.value })}
-      />
-      <Box sx={{ display: 'flex', gap: 0.5 }}>
-        {['shield', 'flag', 'anchor', 'flight'].map((icon) => (
-          <Button key={icon} size="small" variant={team.icon === icon ? 'contained' : 'text'} onClick={() => setTeam({ ...team, icon })}>
-            {icon}
+      {canTeams ? (
+        <>
+          <Typography variant="caption" color="text.secondary">Add a team</Typography>
+          <TextField size="small" label="Team name" value={team.name} onChange={(event) => setTeam({ ...team, name: event.target.value })} />
+          <ChoiceField label="Map colour" value={team.swatchId} options={swatches} selfId="" teams={data.teams} onChange={(event) => setTeam({ ...team, swatchId: event.target.value })} />
+          <ChoiceField label="Theme" value={team.themeId} options={themes} selfId="" teams={data.teams} onChange={(event) => setTeam({ ...team, themeId: event.target.value })} />
+          <IconField value={team.icon} onChange={(icon) => setTeam({ ...team, icon })} />
+          <Button disabled={!team.name.trim()} onClick={() => commit((userId) => api.saveTeam(userId, team)).then(() => setTeam({ name: '', swatchId: '', themeId: '', icon: '' }))}>
+            Add team
           </Button>
-        ))}
-      </Box>
-      <Button onClick={() => commit((userId) => api.saveTeam(userId, team)).then(() => setTeam({ ...team, newId: '', name: '', swatchId: '', themeId: '' }))}>Add team</Button>
-      <Typography variant="subtitle2">Roles</Typography>
-      {data.roles.map((item) => (
-        <Stack key={item.id} direction="row" spacing={1}>
-          <Typography variant="body2" sx={{ flex: 1 }}>{item.name}</Typography>
-          <Button size="small" onClick={() => commit((userId) => api.deleteRole(userId, item.id))}>Remove</Button>
-        </Stack>
-      ))}
-      <TextField size="small" label="Role id" value={role.newId} onChange={(event) => setRole({ ...role, newId: event.target.value })} />
-      <TextField size="small" label="Role name" value={role.name} onChange={(event) => setRole({ ...role, name: event.target.value })} />
-      <Button onClick={() => commit((userId) => api.saveRole(userId, role)).then(() => setRole({ newId: '', name: '' }))}>Add role</Button>
+        </>
+      ) : null}
+      {canRoles || canUsers ? (
+        <>
+          <Typography variant="subtitle2">Roles</Typography>
+          {data.roles.map((item) => (
+            <RoleEditor key={item.id} role={item} catalog={catalog} canEdit={canRoles} />
+          ))}
+        </>
+      ) : null}
+      {canRoles ? (
+        <>
+          <TextField size="small" label="Role code" value={role.newId} onChange={(event) => setRole({ ...role, newId: event.target.value })} />
+          <TextField size="small" label="Role name" value={role.name} onChange={(event) => setRole({ ...role, name: event.target.value })} />
+          <Button disabled={!role.newId.trim() || !role.name.trim()} onClick={() => commit((userId) => api.saveRole(userId, role)).then(() => setRole({ newId: '', name: '' }))}>Add role</Button>
+        </>
+      ) : null}
     </Stack>
   )
+}
+
+function OrbatGate() {
+  const features = useSessionStore((state) => state.session?.features)
+  if (!canOpenOrbat(features)) return <Caption>Your role does not include ORBAT.</Caption>
+  return <OrbatPanel />
 }
 
 function FlagPanel() {
