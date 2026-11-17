@@ -1,19 +1,39 @@
+import { FeatureCodes, hasFeature } from '../auth/featureCodes'
+import { canOpenDirectory, canOpenOrbat, isAdminLike } from '../auth/access'
 import { logger } from '../lib/logger'
 import { palettes } from '../theme/palettes'
 import { marks, swatchById, swatches } from '../theme/swatches'
+import { getIdentity, getRemote, registerSnapshot } from './directoryRemote'
 import { ApiError } from './errors'
-import {
-  accessFor,
-  addDirectoryUser,
-  changePassword as writePassword,
-  listDirectoryUsers,
-  mapService,
-  osmService,
-  registerTeamThemes,
-  removeDirectoryUser,
-  setAppointmentTeam,
-  updateDirectoryUser,
-} from './fixtures'
+import { listDirectoryUsers, mapService, osmService, registerTeamThemes } from './fixtures'
+
+// Users, teams, roles and their administration are real (HTTP). Everything else in this file (map features,
+// planning, replay, simulation, stream, flags) is still the in-memory stand-in until those APIs exist.
+export {
+  assignUserTeam,
+  deleteRole,
+  deleteTeam,
+  deleteUser,
+  loadWorkbench,
+  saveRole,
+  saveTeam,
+  saveUser,
+  updatePassword,
+} from './directoryApi'
+
+/** What the signed-in user may do, derived from the backend feature codes. */
+function accessFor(userId) {
+  const identity = getIdentity()
+  if (!identity || identity.userId !== userId) return null
+  const features = identity.features
+  return {
+    userId,
+    features,
+    admin: isAdminLike(features),
+    canControlGame: hasFeature(features, FeatureCodes.MANAGE_GAME),
+    canSelectScenario: hasFeature(features, FeatureCodes.MANAGE_SCENARIO),
+  }
+}
 
 const FLAG_LIST = [
   { key: 'layerOpacity', label: 'Layer opacity', group: 'Map' },
@@ -192,7 +212,8 @@ function navigationFor(access) {
     const admin = []
     if (flags.zonesAdmin) admin.push(item('zones', 'Zones', 'zones'))
     if (flags.routesAdmin) admin.push(item('routes', 'Routes', 'routes'))
-    if (flags.adminPanel) admin.push(item('directory', 'Users and teams', 'directory'))
+    if (flags.adminPanel && canOpenDirectory(access.features)) admin.push(item('directory', 'Users and teams', 'directory'))
+    if (canOpenOrbat(access.features)) admin.push(item('orbat', 'ORBAT', 'orbat'))
     admin.push(item('flags', 'Features', 'flags'))
     if (admin.length) groups.push({ id: 'admin', label: 'Administration', items: admin })
   }
@@ -291,7 +312,8 @@ function remember() {
 export function snapshot(userId) {
   const access = accessFor(userId)
   const replayFrame = replay ? recordings.find((item) => item.id === replay.id)?.frames[replay.index] : null
-  return {
+  const remote = getRemote()
+  const base = {
     navigation: access ? navigationFor(access) : [],
     opacity: { ...opacity },
     features: clone(features),
@@ -353,12 +375,11 @@ export function snapshot(userId) {
     markers: positions(),
     showTeams: flags.teamMapIcons,
   }
-}
 
-export async function loadWorkbench(userId) {
-  requireUser(userId)
-  logger.info('workbench.loaded', { userId })
-  return snapshot(userId)
+  if (!remote) return base
+  // Users, teams, roles, themes and swatches come from the backend once it has been read.
+  const { users, teams, roles, swatches: remoteSwatches, themeChoices, featureCatalog, directoryThemes, access: grants } = remote
+  return { ...base, users, teams, roles, swatches: remoteSwatches, themeChoices, featureCatalog, directoryThemes, grants }
 }
 
 export function subscribeWorkbench(userId, onChange) {
@@ -872,123 +893,6 @@ export function deleteCatalogue(userId, featureId) {
   return deleteFeature(userId, featureId)
 }
 
-function heldBy(field, value, exceptId) {
-  return teams.find((team) => team[field] === value && team.id !== exceptId) || null
-}
-
-export function saveTeam(userId, draft) {
-  requireAdmin(userId)
-  requireFlag('adminPanel')
-  const name = requireName(draft?.name, 'team.rejected')
-  const swatch = swatchById(draft?.swatchId)
-  const theme = palettes.find((item) => item.id === draft?.themeId)
-  if (!swatch) fail('team.rejected', { userId }, 'Choose a map colour.', 'VALIDATION')
-  if (!theme) fail('team.rejected', { userId }, 'Choose a theme.', 'VALIDATION')
-  const exceptId = draft.id || null
-  const swatchOwner = heldBy('swatchId', swatch.id, exceptId)
-  if (swatchOwner) fail('team.rejected', { userId, swatchId: swatch.id }, `${swatch.name} is already used by ${swatchOwner.name}.`, 'CONFLICT')
-  const themeOwner = heldBy('themeId', theme.id, exceptId)
-  if (themeOwner) fail('team.rejected', { userId, themeId: theme.id }, `${theme.name} is already used by ${themeOwner.name}.`, 'CONFLICT')
-  if (draft.id) {
-    const team = teams.find((item) => item.id === draft.id)
-    if (!team) fail('team.rejected', { userId }, 'That team is no longer in the exercise.', 'NOT_FOUND')
-    team.name = name
-    team.swatchId = swatch.id
-    team.themeId = theme.id
-    if (draft.icon) team.icon = draft.icon
-  } else {
-    const id = String(draft.newId || '').trim().toLowerCase()
-    if (!/^[a-z][a-z0-9-]{1,20}$/.test(id)) fail('team.rejected', { userId }, 'Use a short team id, starting with a letter.', 'VALIDATION')
-    if (teams.some((item) => item.id === id)) fail('team.rejected', { userId }, 'That team id is already used.', 'CONFLICT')
-    teams.push({ id, name, swatchId: swatch.id, themeId: theme.id, icon: draft.icon || 'shield' })
-  }
-  logger.info('team.saved', { userId, teamId: draft.id || draft.newId, swatchId: swatch.id, themeId: theme.id })
-  return snapshot(userId)
-}
-
-export function assignUserTeam(userId, targetId, teamId) {
-  requireAdmin(userId)
-  requireFlag('adminPanel')
-  if (targetId === 'apex') fail('user.rejected', { userId, targetId }, 'APEX is not on a team.', 'FORBIDDEN')
-  if (!teams.some((item) => item.id === teamId)) fail('user.rejected', { userId, teamId }, 'That team is not in the exercise.', 'NOT_FOUND')
-  const result = setAppointmentTeam(targetId, teamId)
-  if (result === 'PROTECTED') fail('user.rejected', { userId, targetId }, 'APEX is not on a team.', 'FORBIDDEN')
-  if (result === 'MISSING') fail('user.rejected', { userId, targetId }, 'That user is no longer in the directory.', 'NOT_FOUND')
-  logger.info('user.team_assigned', { userId, targetId, teamId })
-  return snapshot(userId)
-}
-
-export function deleteTeam(userId, teamId) {
-  requireAdmin(userId)
-  if (features.some((feature) => feature.teamId === teamId) || graphics.some((graphic) => graphic.teamId === teamId)) {
-    fail('team.rejected', { userId, teamId }, 'Reassign the features that use this team first.', 'CONFLICT')
-  }
-  const index = teams.findIndex((item) => item.id === teamId)
-  if (index < 0) fail('team.rejected', { userId, teamId }, 'That team is no longer in the exercise.', 'NOT_FOUND')
-  teams.splice(index, 1)
-  logger.info('team.deleted', { userId, teamId })
-  return snapshot(userId)
-}
-
-export function saveRole(userId, draft) {
-  requireAdmin(userId)
-  requireFlag('adminPanel')
-  const name = requireName(draft?.name, 'role.rejected')
-  if (draft.id) {
-    const role = roles.find((item) => item.id === draft.id)
-    if (!role) fail('role.rejected', { userId }, 'That role is no longer in the directory.', 'NOT_FOUND')
-    role.name = name
-  } else {
-    const id = String(draft.newId || '').trim().toLowerCase()
-    if (!/^[a-z][a-z0-9-]{1,20}$/.test(id)) fail('role.rejected', { userId }, 'Use a short role id, starting with a letter.', 'VALIDATION')
-    if (roles.some((item) => item.id === id)) fail('role.rejected', { userId }, 'That role id is already used.', 'CONFLICT')
-    roles.push({ id, name })
-  }
-  logger.info('role.saved', { userId })
-  return snapshot(userId)
-}
-
-export function deleteRole(userId, roleId) {
-  requireAdmin(userId)
-  const role = roles.find((item) => item.id === roleId)
-  if (!role) fail('role.rejected', { userId, roleId }, 'That role is no longer in the directory.', 'NOT_FOUND')
-  if (listDirectoryUsers().some((user) => user.role === role.name)) fail('role.rejected', { userId, roleId }, 'A user still holds this role.', 'CONFLICT')
-  roles.splice(roles.findIndex((item) => item.id === roleId), 1)
-  logger.info('role.deleted', { userId, roleId })
-  return snapshot(userId)
-}
-
-export function saveUser(userId, draft) {
-  requireAdmin(userId)
-  requireFlag('adminPanel')
-  const title = requireName(draft?.title, 'user.rejected')
-  if (!draft?.role || !draft?.service) fail('user.rejected', { userId }, 'Enter the role and the service.', 'VALIDATION')
-  if (!draft.id) {
-    if (!draft.teamId) fail('user.rejected', { userId }, 'Choose a team.', 'VALIDATION')
-    if (!teams.some((item) => item.id === draft.teamId)) fail('user.rejected', { userId, teamId: draft.teamId }, 'That team is not in the exercise.', 'NOT_FOUND')
-  }
-  if (draft.id) {
-    if (!updateDirectoryUser(draft.id, { title, role: draft.role, service: draft.service })) {
-      fail('user.rejected', { userId, id: draft.id }, 'That user cannot be changed.', 'FORBIDDEN')
-    }
-  } else {
-    const id = String(draft.newId || '').trim().toLowerCase()
-    if (!/^[a-z][a-z0-9-]{1,20}$/.test(id)) fail('user.rejected', { userId }, 'Use a short user id, starting with a letter.', 'VALIDATION')
-    if (!addDirectoryUser({ id, title, role: draft.role, service: draft.service, teamId: draft.teamId })) fail('user.rejected', { userId }, 'That user id is already used.', 'CONFLICT')
-  }
-  logger.info('user.saved', { userId, id: draft.id || draft.newId })
-  return snapshot(userId)
-}
-
-export function deleteUser(userId, targetId) {
-  requireAdmin(userId)
-  const result = removeDirectoryUser(targetId)
-  if (result === 'PROTECTED') fail('user.rejected', { userId, targetId }, 'APEX cannot be removed.', 'FORBIDDEN')
-  if (result === 'MISSING') fail('user.rejected', { userId, targetId }, 'That user is no longer in the directory.', 'NOT_FOUND')
-  logger.info('user.deleted', { userId, targetId })
-  return snapshot(userId)
-}
-
 export function setFlag(userId, key, enabled) {
   requireAdmin(userId)
   if (!FLAG_LIST.some((item) => item.key === key)) fail('flag.rejected', { userId, key }, 'That feature is not in the catalogue.', 'NOT_FOUND')
@@ -997,12 +901,4 @@ export function setFlag(userId, key, enabled) {
   return snapshot(userId)
 }
 
-export function updatePassword(userId, currentPassword, nextPassword) {
-  requireUser(userId)
-  const result = writePassword(userId, currentPassword, nextPassword)
-  if (result === 'CURRENT') fail('password.rejected', { userId }, 'The current password is not correct.', 'VALIDATION')
-  if (result === 'SHORT') fail('password.rejected', { userId }, 'Use at least 3 characters.', 'VALIDATION')
-  if (result === 'SAME') fail('password.rejected', { userId }, 'Choose a different password.', 'VALIDATION')
-  logger.info('password.changed', { userId })
-  return snapshot(userId)
-}
+registerSnapshot(snapshot)

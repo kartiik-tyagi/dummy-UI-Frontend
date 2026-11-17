@@ -1,8 +1,11 @@
 import { create } from 'zustand'
 import dayjs from 'dayjs'
-import { ApiError, changeGame as requestGameChange, changeScenario as requestScenarioChange, resumeSession, setApexTheme } from '../../shared/api/client'
+import { ApiError, changeGame as requestGameChange, changeScenario as requestScenarioChange, logout, resumeSession, setApexTheme } from '../../shared/api/client'
+import { setUnauthorizedHandler } from '../../shared/api/http'
+import { getToken, setToken } from '../../shared/api/tokenStore'
 import { logger } from '../../shared/lib/logger'
 import { clearSessionKey, readSessionKey, writeSessionKey } from '../../shared/lib/sessionKey'
+import { useToastStore } from '../feedback/useToastStore'
 
 const FALLBACK = '2026-10-28T06:00:00'
 
@@ -33,7 +36,8 @@ export const useSessionStore = create((set, get) => ({
     if (restoring) return restoring
     restoring = (async () => {
       const saved = readSessionKey()
-      if (!saved.userId) {
+      if (!getToken()) {
+        if (saved.userId) clearSessionKey()
         set({
           ready: true,
           session: null,
@@ -42,11 +46,13 @@ export const useSessionStore = create((set, get) => ({
         return
       }
       try {
-        const session = await resumeSession(saved.userId)
+        const session = await resumeSession()
         set(signedInState(session))
-        logger.info('session.restored', { userId: saved.userId })
+        writeSessionKey(session.profile.id)
+        logger.info('session.restored', { userId: session.profile.id })
       } catch (error) {
         clearSessionKey()
+        setToken(null)
         set({
           ready: true,
           session: null,
@@ -60,12 +66,18 @@ export const useSessionStore = create((set, get) => ({
   },
   signIn: (session) => {
     const persisted = writeSessionKey(session.profile.id)
+    const token = getToken()
+    if (token) setToken(token)
     set(signedInState(session))
     logger.info('auth.signed_in', { userId: session.profile.id, persisted })
+    if (session.me && session.me.canWork === false) {
+      useToastStore.getState().push(`Signed in, but work is not available yet (${session.me.workBlockedReason || 'not active'}).`, 'warning')
+    }
   },
   signOut: () => {
     const userId = get().session?.profile?.id || null
     clearSessionKey()
+    logout()
     logger.info('auth.signed_out', { userId })
     set({
       session: null,
@@ -103,7 +115,9 @@ export const useSessionStore = create((set, get) => ({
           ...state.session,
           activeScenarioId: result.activeScenarioId,
           selectedScenarioId: result.activeScenarioId,
-          scenarios: state.session.scenarios.map((item) => ({ ...item, active: item.id === result.activeScenarioId })),
+          scenarios: result.scenarios || state.session.scenarios.map((item) => ({ ...item, active: item.id === result.activeScenarioId })),
+          games: result.games || state.session.games,
+          activeGame: result.activeGame || state.session.activeGame,
         },
       }
     })
@@ -133,7 +147,16 @@ export const useSessionStore = create((set, get) => ({
     const result = await requestGameChange({ userId, gameId })
     set((state) => {
       if (!state.session) return state
-      return { session: { ...state.session, activeGame: { id: result.activeGameId, name: result.name } } }
+      return {
+        session: {
+          ...state.session,
+          activeGame: { id: result.activeGameId, name: result.name },
+          activeScenarioId: result.activeScenarioId || state.session.activeScenarioId,
+          selectedScenarioId: result.activeScenarioId || state.session.selectedScenarioId,
+          scenarios: result.scenarios || state.session.scenarios,
+          games: result.games || state.session.games,
+        },
+      }
     })
   },
   chooseTheme: async (themeId) => {
@@ -202,3 +225,18 @@ export const useSessionStore = create((set, get) => ({
     set({ epochMs: epochMs + 60 * 1000 })
   },
 }))
+
+setUnauthorizedHandler(() => {
+  const { session } = useSessionStore.getState()
+  if (!session) return
+  clearSessionKey()
+  logout()
+  useSessionStore.setState({
+    session: null,
+    ready: true,
+    notice: 'Your session has ended. Sign in again.',
+    status: 'ready',
+    resetToken: 0,
+    phaseId: null,
+  })
+})

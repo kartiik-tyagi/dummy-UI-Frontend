@@ -39,7 +39,7 @@ export function changePassword(userId, currentPassword, nextPassword) {
   return 'OK'
 }
 
-const mapFilters = [
+export const mapFilters = [
   { id: 'countries', label: 'Countries', group: 'Base', layers: 'ne:countries', base: true, transparent: false },
   { id: 'places', label: 'Populated places', group: 'Reference', layers: 'ne:populated_places', base: false, transparent: true },
   { id: 'coast', label: 'Coastline', group: 'Reference', layers: 'ne:coastlines', base: false, transparent: true },

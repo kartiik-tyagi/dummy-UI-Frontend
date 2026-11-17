@@ -1,13 +1,14 @@
 import { z } from 'zod'
 import { logger } from '../lib/logger'
-import { readExerciseChoice, writeExerciseChoice } from '../lib/sessionKey'
 import { ApiError } from './errors'
-import { paletteById } from '../theme/palettes'
-import { activateGame, activateScenario, adoptExercise, checkPassword, exerciseChoice, loginContext, sessionFor, setAppointmentTheme } from './fixtures'
+import { get, patch, post } from './http'
+import { setIdentity, setRemote } from './directoryRemote'
+import { themeFromEntity } from './mappers'
+import { buildSession } from './session'
+import { clearToken, getToken, setToken } from './tokenStore'
+import { loginPalette } from '../theme/palettes'
 
 export { ApiError } from './errors'
-
-const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms))
 
 const themeSchema = z.object({
   mode: z.enum(['dark', 'light']),
@@ -76,16 +77,30 @@ const loginContextSchema = z.object({
   users: z.array(userSchema).min(1),
 })
 
+const meSchema = z.object({
+  userId: z.number(),
+  name: z.string(),
+  roleCodes: z.array(z.string()),
+  administeredTeamId: z.number().nullable(),
+  standardOrbatId: z.number().nullable(),
+  standardNodeId: z.string().nullable(),
+  playingOrbatId: z.number().nullable(),
+  playingNodeId: z.string().nullable(),
+  canWork: z.boolean(),
+  workBlockedReason: z.string(),
+})
+
 const sessionSchema = z.object({
   profile: userSchema,
   theme: namedThemeSchema,
   themes: z.array(namedThemeSchema).min(1),
   canSelectTheme: z.boolean(),
-  scenarios: z.array(z.object({ id: z.string(), name: z.string(), active: z.boolean() })).min(1),
+  // Scenarios and games are only readable with MANAGE_SCENARIO / MANAGE_GAME, so they may be empty.
+  scenarios: z.array(z.object({ id: z.string(), name: z.string(), active: z.boolean() })),
   selectedScenarioId: z.string(),
   activeScenarioId: z.string(),
   activeGame: z.object({ id: z.string(), name: z.string() }),
-  games: z.array(z.object({ id: z.string(), name: z.string(), open: z.boolean() })).min(1),
+  games: z.array(z.object({ id: z.string(), name: z.string(), open: z.boolean(), scenarioId: z.string().optional(), active: z.boolean().optional(), status: z.string().optional() })),
   navigation: z
     .array(
       z.object({
@@ -95,7 +110,7 @@ const sessionSchema = z.object({
       }),
     )
     .min(1),
-  sections: z.array(z.object({ id: z.string(), kicker: z.string(), label: z.string(), icon: z.string() })).min(1),
+  sections: z.array(z.object({ id: z.string(), kicker: z.string(), label: z.string(), icon: z.string() })),
   resources: z.array(z.object({ id: z.string(), name: z.string(), detail: z.string(), status: z.string() })),
   plans: z.array(z.object({ id: z.string(), name: z.string(), detail: z.string(), status: z.string() })),
   filters: z.array(filterSchema).min(1),
@@ -121,124 +136,158 @@ const sessionSchema = z.object({
   exerciseTitle: z.string(),
   classification: z.string(),
   demoMode: z.boolean(),
+  features: z.array(z.string()),
+  me: meSchema,
 })
 
-let exerciseHydrated = false
-
-function hydrateExercise() {
-  if (exerciseHydrated) return
-  exerciseHydrated = true
-  const rejected = adoptExercise(readExerciseChoice())
-  if (rejected.scenarioId) logger.warn('scenario.restore_rejected', { scenarioId: rejected.scenarioId, code: 'UNKNOWN' })
-  if (rejected.game) logger.warn('game.restore_rejected', { gameId: rejected.game.id, code: rejected.game.code })
-}
-
-function readContext() {
-  hydrateExercise()
-  const parsed = loginContextSchema.safeParse(loginContext())
-  if (!parsed.success) throw new ApiError('The exercise directory could not be read.', 'VALIDATION')
-  const data = parsed.data
-  if (data.gameOpen) return data
-  return { ...data, users: data.users.filter((user) => user.id === 'apex') }
-}
-
-function sessionFromDirectory(userId) {
-  const context = readContext()
-  const user = context.users.find((item) => item.id === userId)
-  if (!user) throw new ApiError('This session is no longer valid.', 'SESSION')
-  if (!context.gameOpen && user.id !== 'apex') {
-    throw new ApiError('No game is active. Only APEX may sign in.', 'NOT_ACTIVE_GAME')
+function staticLoginContext() {
+  return {
+    exerciseTitle: 'Exercise Jayant',
+    systemName: 'JAYANT',
+    classification: 'EXERCISE',
+    purpose: 'Situation picture',
+    accessNotice: 'Authorised users only',
+    activeScenarioName: '',
+    activeGameName: '',
+    gameOpen: true,
+    backgroundImage: '/login-background.png',
+    passwordHint: 'Default administrator: APEX / 123',
+    theme: loginPalette,
+    users: [{ id: 'APEX', title: 'APEX', role: 'Administrator', service: 'Exercise control', avatarUrl: '' }],
   }
-  const parsed = sessionSchema.safeParse(sessionFor(user.id))
-  if (!parsed.success) throw new ApiError('The user profile could not be read.', 'VALIDATION')
+}
+
+/**
+ * The backend has no public login-context endpoint yet, so the shell fields are static and the user is typed.
+ * If the endpoint appears later it is used as is.
+ */
+export async function getLoginContext() {
+  const fallback = staticLoginContext()
+  try {
+    const remote = await get('/auth/login-context', undefined, { auth: false })
+    const parsed = loginContextSchema.safeParse({ ...fallback, ...remote })
+    if (parsed.success) return parsed.data
+  } catch (error) {
+    logger.info('login_context.static', { code: error?.code || 'UNKNOWN' })
+  }
+  return fallback
+}
+
+function validate(session) {
+  const parsed = sessionSchema.safeParse(session)
+  if (!parsed.success) {
+    logger.error('session.invalid', { issues: parsed.error.issues.slice(0, 3).map((issue) => `${issue.path.join('.')}: ${issue.message}`) })
+    throw new ApiError('The user profile could not be read.', 'VALIDATION')
+  }
+  setIdentity({ userId: parsed.data.profile.id, features: parsed.data.features })
   return parsed.data
 }
 
-export async function getLoginContext() {
-  try {
-    await wait(180)
-    return readContext()
-  } catch (error) {
-    logger.error('directory.unreadable', { code: error?.code || 'UNKNOWN', message: error?.message })
-    throw error
-  }
+async function sessionFromMe(me) {
+  if (!me || typeof me !== 'object') throw new ApiError('The user profile could not be read.', 'VALIDATION')
+  return validate(await buildSession(me))
 }
 
 export async function login({ userId, password }) {
   try {
-    await wait(220)
+    const name = String(userId || '').trim()
+    if (!name) throw new ApiError('Enter the user name.', 'VALIDATION')
     if (!password) throw new ApiError('Enter the access password.', 'VALIDATION')
-    if (!checkPassword(userId, password)) throw new ApiError('Access refused.', 'VALIDATION')
-    if (!userId) throw new ApiError('Select a user.', 'VALIDATION')
-    return sessionFromDirectory(userId)
+    const result = await post('/auth/login', { name, password }, { auth: false })
+    if (!result?.token) throw new ApiError('The service did not return a session.', 'BAD_RESPONSE')
+    setToken(result.token)
+    try {
+      return await sessionFromMe(result.me)
+    } catch (error) {
+      clearToken()
+      setIdentity(null)
+      throw error
+    }
   } catch (error) {
     logger.warn('auth.rejected', { userId: userId || null, code: error?.code || 'UNKNOWN' })
     throw error
   }
 }
 
-export async function resumeSession(userId) {
+/** Rebuilds the session from the stored token. The argument is kept for compatibility and ignored. */
+export async function resumeSession() {
   try {
-    await wait(80)
-    if (!userId) throw new ApiError('The saved session is not valid.', 'SESSION')
-    return sessionFromDirectory(userId)
+    if (!getToken()) throw new ApiError('The saved session is not valid.', 'SESSION')
+    const me = await get('/auth/me')
+    return await sessionFromMe(me)
   } catch (error) {
-    logger.warn('session.restore_rejected', { userId: userId || null, code: error?.code || 'UNKNOWN' })
+    if (error?.code === 'UNAUTHORIZED') clearToken()
+    setIdentity(null)
+    logger.warn('session.restore_rejected', { code: error?.code || 'UNKNOWN' })
     throw error
   }
 }
 
-function persistExercise(userId, event, idName, id) {
-  const persisted = writeExerciseChoice(exerciseChoice())
-  logger.info(event, { userId, [idName]: id, persisted })
+export async function logout() {
+  const token = getToken()
+  clearToken()
+  setIdentity(null)
+  setRemote(null)
+  if (!token) return
+  try {
+    await post('/auth/logout', undefined, { token })
+  } catch (error) {
+    logger.info('auth.logout_unconfirmed', { code: error?.code || 'UNKNOWN' })
+  }
 }
 
-export async function setApexTheme({ userId, themeId }) {
+export async function refreshSession() {
+  const me = await get('/auth/me')
+  return sessionFromMe(me)
+}
+
+export async function setApexTheme({ themeId }) {
   try {
-    await wait(80)
-    if (userId !== 'apex') throw new ApiError('Only APEX may choose a theme.', 'FORBIDDEN')
-    const theme = paletteById(themeId)
-    if (!theme) throw new ApiError('That theme is not in the catalog.', 'NOT_FOUND')
-    if (!setAppointmentTheme(userId, themeId)) throw new ApiError('Only APEX may choose a theme.', 'FORBIDDEN')
-    logger.info('theme.changed', { userId, themeId })
-    return theme
+    const id = Number(themeId)
+    if (!Number.isFinite(id)) throw new ApiError('That theme is not in the catalog.', 'NOT_FOUND')
+    await patch('/users/me/theme', { themeId: id })
+    const entity = await get(`/themes/${id}`)
+    logger.info('theme.changed', { themeId })
+    return themeFromEntity(entity)
   } catch (error) {
-    logger.warn('theme.rejected', { userId: userId || null, themeId: themeId || null, code: error?.code || 'UNKNOWN' })
+    logger.warn('theme.rejected', { themeId: themeId || null, code: error?.code || 'UNKNOWN' })
     throw error
   }
 }
 
-export async function changeScenario({ userId, scenarioId }) {
+function exerciseDelta(session) {
+  return {
+    scenarios: session.scenarios,
+    games: session.games,
+    activeGame: session.activeGame,
+  }
+}
+
+export async function changeScenario({ scenarioId }) {
   try {
-    await wait(160)
-    hydrateExercise()
-    const session = sessionFromDirectory(userId)
-    if (!session.canSelectScenario) throw new ApiError('This user cannot change the scenario.', 'FORBIDDEN')
     if (!scenarioId) throw new ApiError('Select a scenario.', 'VALIDATION')
-    const result = activateScenario(scenarioId)
-    if (!result.ok) throw new ApiError('That scenario is not in this exercise.', 'NOT_FOUND')
-    if (!result.unchanged) persistExercise(userId, 'scenario.changed', 'scenarioId', result.id)
-    return { activeScenarioId: result.id, name: result.name }
+    const scenario = await post(`/scenarios/${scenarioId}/activate`)
+    const session = await refreshSession()
+    return { activeScenarioId: String(scenario.id), name: scenario.name, ...exerciseDelta(session) }
   } catch (error) {
-    logger.warn('scenario.change_rejected', { userId: userId || null, scenarioId: scenarioId || null, code: error?.code || 'UNKNOWN' })
+    logger.warn('scenario.change_rejected', { scenarioId: scenarioId || null, code: error?.code || 'UNKNOWN' })
     throw error
   }
 }
 
-export async function changeGame({ userId, gameId }) {
+export async function changeGame({ gameId }) {
   try {
-    await wait(160)
-    hydrateExercise()
-    const session = sessionFromDirectory(userId)
-    if (!session.canSelectGame) throw new ApiError('This user cannot change the game.', 'FORBIDDEN')
     if (!gameId) throw new ApiError('Select a game.', 'VALIDATION')
-    const result = activateGame(gameId)
-    if (!result.ok && result.code === 'CLOSED') throw new ApiError('That game is closed.', 'CLOSED')
-    if (!result.ok) throw new ApiError('That game is not in this exercise.', 'NOT_FOUND')
-    if (!result.unchanged) persistExercise(userId, 'game.changed', 'gameId', result.id)
-    return { activeGameId: result.id, name: result.name }
+    const game = await post(`/games/${gameId}/activate`)
+    const session = await refreshSession()
+    return {
+      activeGameId: String(game.id),
+      name: game.name,
+      activeScenarioId: session.activeScenarioId,
+      ...exerciseDelta(session),
+    }
   } catch (error) {
-    logger.warn('game.change_rejected', { userId: userId || null, gameId: gameId || null, code: error?.code || 'UNKNOWN' })
+    logger.warn('game.change_rejected', { gameId: gameId || null, code: error?.code || 'UNKNOWN' })
     throw error
   }
 }
