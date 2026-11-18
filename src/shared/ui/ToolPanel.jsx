@@ -37,7 +37,7 @@ export function ToolPanel({ panel, onClose }) {
         </IconButton>
       </Box>
       <Divider />
-      <Box sx={{ overflow: 'auto', px: 1.5, py: 1.25, flex: 1 }}>
+      <Box sx={{ overflow: 'auto', px: { xs: 1.25, sm: 1.75 }, py: 1.5, flex: 1, minHeight: 0 }}>
         <PanelBody panel={panel} />
       </Box>
     </Box>

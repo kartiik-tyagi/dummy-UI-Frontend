@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import dayjs from 'dayjs'
-import { ApiError, changeGame as requestGameChange, changeScenario as requestScenarioChange, logout, resumeSession, setApexTheme } from '../../shared/api/client'
+import { ApiError, changeGame as requestGameChange, changeScenario as requestScenarioChange, logout, refreshSession, resumeSession, setApexTheme } from '../../shared/api/client'
 import { setUnauthorizedHandler } from '../../shared/api/http'
 import { getToken, setToken } from '../../shared/api/tokenStore'
 import { logger } from '../../shared/lib/logger'
@@ -90,6 +90,13 @@ export const useSessionStore = create((set, get) => ({
     })
   },
   clearNotice: () => set({ notice: null }),
+  /** Rebuilds session catalogues (scenarios, games, themes, map) after admin changes. */
+  refresh: async () => {
+    if (!get().session) return null
+    const session = await refreshSession()
+    set({ ...signedInState(session), status: get().status, phaseId: get().phaseId, resetToken: get().resetToken })
+    return session
+  },
   changeScenario: async (scenarioId) => {
     const { session, status } = get()
     if (!session) throw new ApiError('Sign in before changing the scenario.', 'SESSION')

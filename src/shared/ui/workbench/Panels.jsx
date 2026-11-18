@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Divider,
   FormControlLabel,
   MenuItem,
   Stack,
@@ -262,14 +263,13 @@ function ThemesAdmin() {
   return (
     <Stack spacing={1}>
       <Typography variant="subtitle2">Themes</Typography>
+      {!rows.length ? <Caption>No themes in the catalogue yet.</Caption> : null}
       {rows.map((row) => (
-        <Stack key={row.id} spacing={0.5}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Typography variant="body2" sx={{ flex: 1 }}>{row.name}</Typography>
-            {row.defaultTheme ? <Caption>Default</Caption> : null}
-            <Button size="small" onClick={() => setDraft({ id: row.id, name: row.name, description: row.description || '', defaultTheme: row.defaultTheme })}>Edit</Button>
-            <Button size="small" color="error" disabled={busy} onClick={() => remove(row.id)}>Remove</Button>
-          </Stack>
+        <Stack key={row.id} direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <Typography variant="body2" sx={{ flex: 1, minWidth: 120 }}>{row.name}</Typography>
+          {row.defaultTheme ? <Caption>Default</Caption> : null}
+          <Button size="small" onClick={() => setDraft({ id: row.id, name: row.name, description: row.description || '', defaultTheme: row.defaultTheme })}>Edit</Button>
+          <Button size="small" color="error" disabled={busy} onClick={() => remove(row.id)}>Remove</Button>
         </Stack>
       ))}
       <TextField size="small" label="Theme name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
@@ -365,7 +365,7 @@ function DirectoryPanel() {
     return <Caption>Your role does not include administration.</Caption>
   }
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} sx={{ minWidth: 0 }}>
       {canUsers ? (
         <>
           <Typography variant="subtitle2">Users</Typography>
@@ -379,6 +379,7 @@ function DirectoryPanel() {
       ) : null}
       {canSides || data.sides?.length ? (
         <>
+          <Divider />
           <Typography variant="subtitle2">Sides</Typography>
           {data.sides.map((item) => (
             <SideEditor key={item.id} side={item} swatches={swatches} themes={themes} sides={data.sides} canEdit={canSides} />
@@ -399,6 +400,7 @@ function DirectoryPanel() {
       ) : null}
       {canRoles || canUsers ? (
         <>
+          <Divider />
           <Typography variant="subtitle2">Roles</Typography>
           {data.roles.map((item) => (
             <RoleEditor key={item.id} role={item} catalog={catalog} canEdit={canRoles} />
@@ -412,8 +414,18 @@ function DirectoryPanel() {
           <Button disabled={!role.newId.trim() || !role.name.trim()} onClick={() => commit((userId) => api.saveRole(userId, role)).then(() => setRole({ newId: '', name: '' }))}>Add role</Button>
         </>
       ) : null}
-      {canThemes ? <ThemesAdmin /> : null}
-      {canNodeTypes ? <NodeTypesAdmin /> : null}
+      {canThemes ? (
+        <>
+          <Divider />
+          <ThemesAdmin />
+        </>
+      ) : null}
+      {canNodeTypes ? (
+        <>
+          <Divider />
+          <NodeTypesAdmin />
+        </>
+      ) : null}
     </Stack>
   )
 }

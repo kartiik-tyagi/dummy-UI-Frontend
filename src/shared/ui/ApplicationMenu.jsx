@@ -72,21 +72,25 @@ export function ApplicationMenu({ presentation = 'rail', expanded = false, onExp
           </Button>
         )}
         <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
-          {sections.map((section) => (
-            <MenuItem
-              key={section.id}
-              selected={section.id === sectionId}
-              onClick={() => {
-                select(section.id)
-                setAnchor(null)
-              }}
-            >
-              <ListItemIcon sx={{ color: section.id === sectionId ? 'primary.main' : 'text.secondary' }}>
-                <NavIcon name={section.icon} />
-              </ListItemIcon>
-              {section.label}
-            </MenuItem>
-          ))}
+          {sections.length ? (
+            sections.map((section) => (
+              <MenuItem
+                key={section.id}
+                selected={section.id === sectionId}
+                onClick={() => {
+                  select(section.id)
+                  setAnchor(null)
+                }}
+              >
+                <ListItemIcon sx={{ color: section.id === sectionId ? 'primary.main' : 'text.secondary' }}>
+                  <NavIcon name={section.icon} />
+                </ListItemIcon>
+                {section.label}
+              </MenuItem>
+            ))
+          ) : (
+            <MenuItem disabled>No application sections for this role</MenuItem>
+          )}
         </Menu>
       </>
     )

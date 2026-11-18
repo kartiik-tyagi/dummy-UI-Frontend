@@ -539,8 +539,14 @@ export default function OrbatPanel() {
       {!loading && !record && !loadError ? (
         <Caption>
           {tab === 'standard'
-            ? standard === null ? 'This side has no standard ORBAT yet.' : 'Choose a side.'
-            : gameId ? 'This game has no playing ORBAT yet. Replicate a standard ORBAT or create an alliance.' : 'Choose a scenario and a game.'}
+            ? !countrySides.length
+              ? 'No country sides yet. Open Users and sides to add a side first.'
+              : standard === null
+                ? 'This side has no standard ORBAT yet.'
+                : 'Choose a side.'
+            : !gameId
+              ? 'Choose a scenario and a game.'
+              : 'This game has no playing ORBAT yet. Replicate a standard ORBAT or create an alliance.'}
         </Caption>
       ) : null}
 

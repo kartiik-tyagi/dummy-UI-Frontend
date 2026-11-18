@@ -103,10 +103,11 @@ export function IconsAdminPanel() {
 
   return (
     <Stack spacing={1.5}>
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-        <Typography variant="subtitle1">Icons</Typography>
+      <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+        <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+          Browse icon folders and upload new artwork.
+        </Typography>
         <Chip size="small" variant="outlined" label={canManage ? 'Can upload' : 'Read only'} />
-        <Box sx={{ flex: 1 }} />
         <Button size="small" onClick={load}>Refresh</Button>
       </Stack>
 

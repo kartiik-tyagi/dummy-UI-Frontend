@@ -11,12 +11,14 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+import { ApiError } from '../../shared/api/errors'
 import { del, get, post, put } from '../../shared/api/http'
 import { EMPTY_LIST } from '../../shared/lib/empty'
 import { logger } from '../../shared/lib/logger'
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import { LoadingState } from '../../shared/ui/LoadingState'
 import { useToastStore } from '../feedback/useToastStore'
+import { useSessionStore } from '../session/useSessionStore'
 
 const EMPTY_SCENARIO = { name: '', description: '', themeId: '' }
 const EMPTY_GAME = { name: '', moonphases: '' }
@@ -27,6 +29,7 @@ const EMPTY_GAME = { name: '', moonphases: '' }
  */
 function ExerciseCrud({ noun, listPath, itemPath, empty, toBody, primary, secondary, extraFields, details, disabledNote }) {
   const push = useToastStore((state) => state.push)
+  const refreshSession = useSessionStore((state) => state.refresh)
   const [items, setItems] = useState(null)
   const [selectedId, setSelectedId] = useState('new')
   const [form, setForm] = useState(empty)
@@ -86,14 +89,27 @@ function ExerciseCrud({ noun, listPath, itemPath, empty, toBody, primary, second
     }
   }
 
+  const syncShell = async () => {
+    try {
+      await refreshSession()
+    } catch (error) {
+      logger.warn(`${noun}.admin.session_refresh_failed`, { message: error?.message })
+    }
+  }
+
   const save = () =>
     run(async () => {
       const isNew = selectedId === 'new'
       const body = toBody(form)
+      if (!body.name) {
+        const error = new ApiError(`Enter a ${noun} name.`, 'VALIDATION', { fieldErrors: { name: 'Required' } })
+        throw error
+      }
       const saved = isNew ? await post(listPath, body) : await put(itemPath(selectedId), body)
       logger.info(`${noun}.admin.${isNew ? 'created' : 'updated'}`, { id: saved?.id ?? selectedId })
       push(`${noun[0].toUpperCase()}${noun.slice(1)} saved.`, 'success')
       await load()
+      await syncShell()
       if (saved) reset(saved)
     }, `The ${noun} could not be saved.`)
 
@@ -103,6 +119,7 @@ function ExerciseCrud({ noun, listPath, itemPath, empty, toBody, primary, second
       logger.info(`${noun}.admin.activated`, { id: selectedId })
       push(`${noun[0].toUpperCase()}${noun.slice(1)} activated.`, 'success')
       await load()
+      await syncShell()
     }, `The ${noun} could not be activated.`)
 
   const remove = async () => {
@@ -112,6 +129,7 @@ function ExerciseCrud({ noun, listPath, itemPath, empty, toBody, primary, second
       push(`${noun[0].toUpperCase()}${noun.slice(1)} deleted.`, 'success')
       reset(null)
       await load()
+      await syncShell()
     }, `The ${noun} could not be deleted.`)
     setConfirmDelete(false)
   }
@@ -120,17 +138,21 @@ function ExerciseCrud({ noun, listPath, itemPath, empty, toBody, primary, second
   if (!items) return <LoadingState label={`Loading ${noun}s`} />
 
   return (
-    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-      <Stack sx={{ width: { md: 260 }, flexShrink: 0 }} spacing={1}>
+    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+      <Stack sx={{ width: { sm: 220, md: 260 }, flexShrink: 0, maxWidth: '100%' }} spacing={1}>
         <Button size="small" variant="outlined" onClick={() => reset(null)}>New {noun}</Button>
-        <List dense disablePadding aria-label={`${noun}s`} sx={{ maxHeight: 420, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+        <List dense disablePadding aria-label={`${noun}s`} sx={{ maxHeight: { xs: 180, sm: 420 }, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
           {items.map((item) => (
             <ListItemButton key={item.id} selected={item.id === selectedId} onClick={() => reset(item)}>
               <ListItemText primary={primary(item)} secondary={secondary?.(item)} slotProps={{ primary: { noWrap: true }, secondary: { noWrap: true } }} />
               {item.active ? <Chip size="small" color="success" label="Active" sx={{ ml: 1 }} /> : null}
             </ListItemButton>
           ))}
-          {!items.length ? <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>No {noun}s yet.</Typography> : null}
+          {!items.length ? (
+            <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>
+              {noun === 'scenario' ? 'No scenarios yet.' : 'No games yet.'}
+            </Typography>
+          ) : null}
         </List>
       </Stack>
       <Stack spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
@@ -182,7 +204,9 @@ export function ScenarioAdminPanel() {
 
   return (
     <Stack spacing={1.5}>
-      <Typography variant="subtitle1">Scenarios</Typography>
+      <Typography variant="body2" color="text.secondary">
+        Create scenarios, then activate one for the exercise.
+      </Typography>
       <ExerciseCrud
         noun="scenario"
         listPath="/scenarios"
@@ -254,8 +278,10 @@ export function GameAdminPanel() {
 
   return (
     <Stack spacing={1.5}>
-      <Stack direction="row" spacing={1.5} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-        <Typography variant="subtitle1">Games</Typography>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} useFlexGap sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap' }}>
+        <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+          Games belong to a scenario. Activate one game for the exercise.
+        </Typography>
         <TextField
           select
           size="small"
@@ -263,9 +289,11 @@ export function GameAdminPanel() {
           value={scenarioId}
           onChange={(event) => setScenarioId(event.target.value)}
           disabled={!scenarios.length}
+          displayEmpty
           helperText={!scenarios.length ? 'Create a scenario first' : undefined}
-          sx={{ minWidth: 220 }}
+          sx={{ minWidth: { xs: '100%', sm: 220 } }}
         >
+          {!scenarios.length ? <MenuItem value="" disabled>No scenarios</MenuItem> : null}
           {scenarios.map((item) => (
             <MenuItem key={item.id} value={item.id}>{item.name}{item.active ? ' · active' : ''}</MenuItem>
           ))}

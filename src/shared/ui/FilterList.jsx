@@ -22,52 +22,61 @@ export function FilterList() {
     else groups.push({ name: filter.group, filters: [filter] })
   }
 
+  if (!filters.length) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        No map layers are available for this session.
+      </Typography>
+    )
+  }
+
   return (
     <Box>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-        Released to this role.
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+        Toggle layers on the picture. Adjust opacity when a layer is shown.
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
         Shown: {summary(filters, true)}
       </Typography>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-        Not shown: {summary(filters, false)}
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+        Hidden: {summary(filters, false)}
       </Typography>
       {groups.map((group) => (
-        <Box key={group.name} sx={{ mb: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
-            {group.name}
+        <Box key={group.name || 'layers'} sx={{ mb: 1.5 }}>
+          <Typography variant="overline" color="text.secondary" sx={{ px: 0.5, letterSpacing: '0.08em' }}>
+            {group.name || 'Layers'}
           </Typography>
           <List disablePadding>
             {group.filters.map((filter) => (
-              <Box key={filter.id}>
-              <ListItemButton
-                selected={filter.visible}
-                aria-pressed={filter.visible}
-                onClick={() => setFilter(filter.id, !filter.visible)}
-                sx={{
-                  borderRadius: 1,
-                  minHeight: 40,
-                  '&.Mui-selected': { bgcolor: 'action.selected' },
-                }}
-              >
-                <ListItemText primary={filter.label} slotProps={{ primary: { variant: 'body2', color: 'text.primary' } }} />
-                <Typography variant="caption" color={filter.visible ? 'primary.main' : 'text.secondary'}>
-                  {filter.visible ? 'On' : 'Off'}
-                </Typography>
-              </ListItemButton>
-              {opacityEnabled ? (
-                <Slider
-                  size="small"
-                  min={0.15}
-                  max={1}
-                  step={0.05}
-                  value={opacity[filter.id] ?? 1}
-                  aria-label={`${filter.label} opacity`}
-                  onChangeCommitted={(_, value) => commit((userId) => api.setLayerOpacity(userId, filter.id, value))}
-                  sx={{ mx: 1.5, width: 'auto' }}
-                />
-              ) : null}
+              <Box key={filter.id} sx={{ px: 0.5, mb: 0.75 }}>
+                <ListItemButton
+                  selected={filter.visible}
+                  aria-pressed={filter.visible}
+                  onClick={() => setFilter(filter.id, !filter.visible)}
+                  sx={{
+                    borderRadius: 1,
+                    minHeight: 40,
+                    px: 1,
+                    '&.Mui-selected': { bgcolor: 'action.selected' },
+                  }}
+                >
+                  <ListItemText primary={filter.label} slotProps={{ primary: { variant: 'body2', color: 'text.primary' } }} />
+                  <Typography variant="caption" color={filter.visible ? 'primary.main' : 'text.secondary'}>
+                    {filter.visible ? 'On' : 'Off'}
+                  </Typography>
+                </ListItemButton>
+                {opacityEnabled && filter.visible ? (
+                  <Slider
+                    size="small"
+                    min={0.15}
+                    max={1}
+                    step={0.05}
+                    value={opacity[filter.id] ?? filter.opacity ?? 1}
+                    aria-label={`${filter.label} opacity`}
+                    onChangeCommitted={(_, value) => commit((userId) => api.setLayerOpacity(userId, filter.id, value))}
+                    sx={{ mx: 1, mt: 0.25, mb: 0.5, width: 'auto' }}
+                  />
+                ) : null}
               </Box>
             ))}
           </List>

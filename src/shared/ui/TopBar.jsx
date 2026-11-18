@@ -39,7 +39,7 @@ export function TopBar({ leading, trailing, menuOpen, onMenuOpenChange, floating
       }}
     >
       {leading}
-      <Typography variant="subtitle2" sx={{ letterSpacing: '0.14em', px: 0.5, flexShrink: 0 }}>
+      <Typography variant="subtitle2" sx={{ letterSpacing: { xs: '0.08em', sm: '0.14em' }, px: 0.5, flexShrink: 0, fontSize: { xs: '0.75rem', sm: undefined } }}>
         GIS WARPLAN
       </Typography>
       <ViewModes mode={viewMode} onChange={onViewMode} />

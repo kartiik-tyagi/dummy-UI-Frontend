@@ -28,8 +28,19 @@ function Frame() {
       />
       <ContextStrip />
       {toolsOpen ? <MapToolbar activeId={panel} onSelect={select} /> : null}
-      <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
-        <MapStage readout="none" onReadout={setReadout} />
+      <Box
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          overflow: 'hidden',
+        }}
+      >
+        <Box sx={{ flex: 1, minWidth: 0, minHeight: { xs: panel ? '32vh' : 0, md: 0 }, display: 'flex' }}>
+          <MapStage readout="none" onReadout={setReadout} />
+        </Box>
         <ToolDock panel={panel} onClose={closePanel} edge="end" />
       </Box>
       <StatusFooter readout={readout} />

@@ -147,7 +147,7 @@ export default function LoginPage() {
                       : attempt.error.message}
               </Alert>
             ) : null}
-            <Button type="submit" variant="contained" disabled={attempt.isPending || !userId} sx={{ minHeight: 44 }}>
+            <Button type="submit" variant="contained" disabled={attempt.isPending || !userId || !password} sx={{ minHeight: 44 }}>
               {attempt.isPending ? 'Signing in' : 'Sign in'}
             </Button>
           </Stack>

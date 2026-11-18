@@ -109,7 +109,9 @@ export function AuditPanel() {
 
   return (
     <Stack spacing={1.5}>
-      <Typography variant="subtitle1">Audit</Typography>
+      <Typography variant="body2" color="text.secondary">
+        Review mutating actions and sign-in sessions.
+      </Typography>
       <Tabs
         value={tab}
         onChange={(_, value) => {
@@ -117,6 +119,8 @@ export function AuditPanel() {
           setPage(0)
           setData(null)
         }}
+        variant="scrollable"
+        allowScrollButtonsMobile
         sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, textTransform: 'none' } }}
       >
         <Tab value="logs" label="Logs" />
@@ -142,7 +146,7 @@ export function AuditPanel() {
             type={numeric ? 'number' : 'text'}
             value={draft[name]}
             onChange={(event) => setDraft((current) => ({ ...current, [name]: event.target.value }))}
-            sx={{ width: 150 }}
+            sx={{ width: { xs: '100%', sm: 150 }, minWidth: { sm: 140 } }}
           />
         ))}
         <TextField
@@ -155,14 +159,14 @@ export function AuditPanel() {
             setPage(0)
           }}
           slotProps={{ select: { native: true } }}
-          sx={{ width: 110 }}
+          sx={{ width: { xs: '100%', sm: 110 } }}
         >
           {SIZES.map((option) => (
             <option key={option} value={option}>{option}</option>
           ))}
         </TextField>
-        <Button type="submit" size="small" variant="contained" sx={{ mt: 0.5 }}>Filter</Button>
-        <Button size="small" onClick={clear} sx={{ mt: 0.5 }}>Clear</Button>
+        <Button type="submit" size="small" variant="contained" sx={{ mt: { sm: 0.5 } }}>Filter</Button>
+        <Button size="small" onClick={clear} sx={{ mt: { sm: 0.5 } }}>Clear</Button>
       </Stack>
 
       {error ? <Alert severity="error" action={<Button color="inherit" size="small" onClick={load}>Retry</Button>}>{error}</Alert> : null}

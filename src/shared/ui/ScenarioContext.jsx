@@ -37,19 +37,30 @@ function Fact({ label, icon, children }) {
   )
 }
 
-function Choice({ label, icon, value, options, disabled, onSelect }) {
+function Choice({ label, icon, value, options, disabled, onSelect, emptyLabel }) {
+  const hasValue = options.some((item) => item.id === value)
   return (
     <Fact label={label} icon={icon}>
       <TextField
         select
         size="small"
         hiddenLabel
-        value={value}
-        disabled={disabled}
+        value={hasValue ? value : ''}
+        disabled={disabled || !options.length}
         onChange={(event) => onSelect(event.target.value)}
         aria-label={label}
-        sx={{ minWidth: 148, '& .MuiInputBase-root': { minHeight: 36 }, '& .MuiSelect-select': { py: 0.75 } }}
+        displayEmpty
+        sx={{ minWidth: 168, maxWidth: 220, '& .MuiInputBase-root': { minHeight: 36 }, '& .MuiSelect-select': { py: 0.75 } }}
       >
+        {!options.length ? (
+          <MenuItem value="" disabled>
+            {emptyLabel || `No ${label.toLowerCase()} yet`}
+          </MenuItem>
+        ) : (
+          <MenuItem value="" disabled>
+            {hasValue ? `Select ${label.toLowerCase()}` : `No active ${label.toLowerCase()}`}
+          </MenuItem>
+        )}
         {options.map((item) => (
           <MenuItem key={item.id} value={item.id} disabled={item.disabled} sx={{ minHeight: 40 }}>
             {item.label}
@@ -122,12 +133,13 @@ export function ScenarioContext() {
             value={session.activeScenarioId}
             disabled={busy}
             onSelect={(id) => ask('scenario', id)}
+            emptyLabel="Create a scenario"
             options={session.scenarios.map((item) => ({ id: item.id, label: item.name }))}
           />
         ) : (
           <Fact label="Scenario" icon={<FlagOutlinedIcon fontSize="small" />}>
-            <Typography variant="body2" noWrap>
-              {scenario?.name}
+            <Typography variant="body2" noWrap color={scenario?.name ? 'text.primary' : 'text.secondary'}>
+              {scenario?.name || 'None active'}
             </Typography>
           </Fact>
         )}
@@ -138,6 +150,7 @@ export function ScenarioContext() {
             value={session.activeGame.id}
             disabled={busy}
             onSelect={(id) => ask('game', id)}
+            emptyLabel="Create a game"
             options={games.map((item) => ({
               id: item.id,
               label: item.open ? item.name : `${item.name} · Closed`,
@@ -146,8 +159,8 @@ export function ScenarioContext() {
           />
         ) : (
           <Fact label="Game" icon={<SportsEsportsOutlinedIcon fontSize="small" />}>
-            <Typography variant="body2" noWrap>
-              {session.activeGame.name}
+            <Typography variant="body2" noWrap color={session.activeGame.name ? 'text.primary' : 'text.secondary'}>
+              {session.activeGame.name || 'None active'}
             </Typography>
           </Fact>
         )}

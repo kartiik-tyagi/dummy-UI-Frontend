@@ -22,6 +22,7 @@ import { logger } from '../../shared/lib/logger'
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import { LoadingState } from '../../shared/ui/LoadingState'
 import { useToastStore } from '../feedback/useToastStore'
+import { useSessionStore } from '../session/useSessionStore'
 
 const EMPTY_SERVER = { code: '', name: '', wmsUrl: '', wfsUrl: '', restUrl: '', workspaceDefault: '', enabled: true, defaultServer: false }
 const EMPTY_LAYER = {
@@ -49,6 +50,7 @@ function Field({ name, label, form, errors, onChange, ...rest }) {
   return (
     <TextField
       size="small"
+      fullWidth
       label={label}
       value={form[name] ?? ''}
       onChange={(event) => onChange(name, event.target.value)}
@@ -71,6 +73,7 @@ function Flag({ name, label, form, onChange }) {
 /** Shared list + form behaviour for a CRUD resource under /map. */
 function useResource(path, empty, toBody, label) {
   const push = useToastStore((state) => state.push)
+  const refreshSession = useSessionStore((state) => state.refresh)
   const [items, setItems] = useState(null)
   const [selectedId, setSelectedId] = useState('new')
   const [form, setForm] = useState(empty)
@@ -118,6 +121,11 @@ function useResource(path, empty, toBody, label) {
       logger.info(isNew ? 'map.admin.created' : 'map.admin.updated', { path, id: saved?.id ?? selectedId })
       push(`${label} saved.`, 'success')
       await load()
+      try {
+        await refreshSession()
+      } catch {
+        /* shell catalogue is best-effort */
+      }
       if (saved?.id) {
         setSelectedId(saved.id)
         setForm(orEmpty(saved, empty))
@@ -137,6 +145,11 @@ function useResource(path, empty, toBody, label) {
       push(`${label} deleted.`, 'success')
       select(null)
       await load()
+      try {
+        await refreshSession()
+      } catch {
+        /* shell catalogue is best-effort */
+      }
     } catch (error) {
       fail(error, `The ${label} could not be deleted.`)
     } finally {
@@ -149,12 +162,12 @@ function useResource(path, empty, toBody, label) {
 
 function ResourceLayout({ resource, title, primary, secondary, children, confirmDelete, setConfirmDelete, name }) {
   const { items, selectedId, message, busy, select, save, remove } = resource
-  if (!items) return <LoadingState label={`Loading ${title.toLowerCase()}`} />
+  if (!items) return <LoadingState label={`Loading ${title}`} />
   return (
-    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-      <Stack sx={{ width: { md: 260 }, flexShrink: 0 }} spacing={1}>
+    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+      <Stack sx={{ width: { sm: 220, md: 260 }, flexShrink: 0, maxWidth: '100%' }} spacing={1}>
         <Button size="small" variant="outlined" onClick={() => select(null)}>New</Button>
-        <List dense disablePadding aria-label={title} sx={{ maxHeight: 420, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+        <List dense disablePadding aria-label={title} sx={{ maxHeight: { xs: 180, sm: 420 }, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
           {items.map((item) => (
             <ListItemButton key={item.id} selected={item.id === selectedId} onClick={() => select(item)}>
               <ListItemText primary={primary(item)} secondary={secondary(item)} slotProps={{ primary: { noWrap: true }, secondary: { noWrap: true } }} />
@@ -269,6 +282,7 @@ function LayersTab({ servers }) {
 
 function ViewDefaultsTab({ servers }) {
   const push = useToastStore((state) => state.push)
+  const refreshSession = useSessionStore((state) => state.refresh)
   const [form, setForm] = useState(null)
   const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
@@ -304,6 +318,11 @@ function ViewDefaultsTab({ servers }) {
       if (saved) setForm(orEmpty(saved, EMPTY_VIEW))
       logger.info('map.admin.view-defaults.updated')
       push('View defaults saved.', 'success')
+      try {
+        await refreshSession()
+      } catch {
+        /* shell catalogue is best-effort */
+      }
     } catch (error) {
       const text = error?.message || 'The view defaults could not be saved.'
       setErrors(error?.fieldErrors || {})
@@ -353,12 +372,20 @@ export function MapAdminPanel() {
   }, [tab])
 
   return (
-    <Stack spacing={1.5}>
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-        <Typography variant="subtitle1">Map administration</Typography>
+    <Stack spacing={1.5} sx={{ minWidth: 0 }}>
+      <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+        <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+          Configure GeoServer endpoints, WMS layers, and the home view.
+        </Typography>
         <Chip size="small" variant="outlined" label={`${servers.length} server${servers.length === 1 ? '' : 's'}`} />
       </Stack>
-      <Tabs value={tab} onChange={(_, value) => setTab(value)} sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, textTransform: 'none' } }}>
+      <Tabs
+        value={tab}
+        onChange={(_, value) => setTab(value)}
+        variant="scrollable"
+        allowScrollButtonsMobile
+        sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, textTransform: 'none' } }}
+      >
         <Tab value="servers" label="Servers" />
         <Tab value="layers" label="Layers" />
         <Tab value="view" label="View defaults" />

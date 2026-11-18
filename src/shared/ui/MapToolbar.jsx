@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Box, Button, Divider, IconButton, Tooltip } from '@mui/material'
+import { Box, Button, Divider, IconButton, Tooltip, useMediaQuery } from '@mui/material'
+import { useTheme } from '@mui/material/styles'
 import CloseIcon from '@mui/icons-material/Close'
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined'
 import { useNavigation } from '../../features/directory/useNavigation'
@@ -40,8 +41,10 @@ function ToolButton({ item, selected, onSelect, placement }) {
 
 export function MapToolbar({ orientation = 'horizontal', activeId, onSelect, onHide }) {
   const groups = useNavigation()
+  const theme = useTheme()
+  const compact = useMediaQuery(theme.breakpoints.down('md'))
   const vertical = orientation === 'vertical'
-  const [openGroups, setOpenGroups] = useState(['map'])
+  const [openGroups, setOpenGroups] = useState(['map', 'admin'])
   const placement = vertical ? 'right' : 'bottom'
 
   const toggle = (id) => {
@@ -58,10 +61,11 @@ export function MapToolbar({ orientation = 'horizontal', activeId, onSelect, onH
         flexDirection: vertical ? 'column' : 'row',
         alignItems: vertical ? 'stretch' : 'center',
         flexShrink: 0,
-        width: vertical ? 48 : 'auto',
+        width: vertical ? 48 : '100%',
         height: vertical ? '100%' : 'auto',
         minHeight: vertical ? 0 : 40,
-        overflow: 'auto',
+        overflowX: vertical ? 'hidden' : 'auto',
+        overflowY: vertical ? 'auto' : 'hidden',
         gap: 0.25,
         px: 0.5,
         py: 0.25,
@@ -69,6 +73,7 @@ export function MapToolbar({ orientation = 'horizontal', activeId, onSelect, onH
         borderColor: 'divider',
         borderRight: vertical ? 1 : 0,
         borderBottom: vertical ? 0 : 1,
+        WebkitOverflowScrolling: 'touch',
       }}
     >
       {onHide ? (
@@ -92,8 +97,8 @@ export function MapToolbar({ orientation = 'horizontal', activeId, onSelect, onH
             }}
           >
             {index > 0 ? <Divider orientation={vertical ? 'horizontal' : 'vertical'} flexItem sx={{ mx: vertical ? 0.5 : 0.25, my: vertical ? 0.25 : 0.75 }} /> : null}
-            {vertical ? (
-              <Tooltip title={group.label} placement="right">
+            {vertical || compact ? (
+              <Tooltip title={group.label} placement={placement}>
                 <IconButton size="small" aria-label={group.label} aria-expanded={open} color={open ? 'primary' : 'default'} onClick={() => toggle(group.id)}>
                   <NavIcon name={GROUP_ICON[group.id] || group.items[0]?.icon || 'layers'} />
                 </IconButton>
