@@ -151,6 +151,26 @@ let settings = {
   homeToken: 0,
   views: { picture: null, planning: null },
 }
+
+/** Applies backend map catalog defaults into the in-memory directory settings (never invents layers here). */
+export function applyMapCatalog(mapConfig) {
+  if (!mapConfig) return
+  if (mapConfig.server?.wmsUrl) {
+    settings.geoserverUrl = mapConfig.server.wmsUrl
+  }
+  if (mapConfig.view) {
+    settings.source = mapConfig.view.basemapSource === 'osm' ? 'osm' : 'wms'
+    if (mapConfig.view.osmUrl) settings.osmUrl = mapConfig.view.osmUrl
+    if (Number.isFinite(mapConfig.view.zoom)) settings.defaultZoom = mapConfig.view.zoom
+  }
+  const base = (mapConfig.layers || []).find((layer) => layer.baseLayer)
+  if (base?.wmsLayers) settings.wmsLayer = base.wmsLayers
+  for (const layer of mapConfig.layers || []) {
+    if (layer.code && layer.defaultOpacity != null) {
+      opacity[layer.code] = Number(layer.defaultOpacity)
+    }
+  }
+}
 let planView = 'mine'
 let tick = 0
 let subscriber = null

@@ -1,6 +1,7 @@
 /** Development-time functionality catalogue. Must match backend FunctionalityCodes.java */
 export const FunctionalityCodes = Object.freeze({
   MAP_VIEW: 'MAP_VIEW',
+  MANAGE_MAP: 'MANAGE_MAP',
   MANAGE_THEMES: 'MANAGE_THEMES',
   MANAGE_SIDES: 'MANAGE_SIDES',
   MANAGE_NODE_TYPES: 'MANAGE_NODE_TYPES',

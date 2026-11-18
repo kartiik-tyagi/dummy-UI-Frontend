@@ -5,7 +5,43 @@ import { clockStart, mapFilters, mapService, mapView, phases, plannedCenters } f
 import { get } from './http'
 import { paletteFallback, roleLabel, themeFromEntity } from './mappers'
 
-const DEFAULT_VISIBLE = { countries: true, places: true }
+function filtersFromMapConfig(mapConfig) {
+  const layers = Array.isArray(mapConfig?.layers) ? mapConfig.layers : []
+  if (!layers.length) {
+    return mapFilters.map(({ id, label, group, layers: wms, base, transparent }) => ({
+      id,
+      label,
+      group,
+      layers: wms,
+      base,
+      transparent,
+      visible: id === 'countries' || id === 'places',
+      opacity: 1,
+    }))
+  }
+  return layers.map((layer) => ({
+    id: layer.code,
+    label: layer.label,
+    group: layer.groupName || '',
+    layers: layer.wmsLayers,
+    base: Boolean(layer.baseLayer),
+    transparent: Boolean(layer.transparent),
+    visible: layer.defaultVisible !== false,
+    opacity: Number(layer.defaultOpacity ?? 1),
+  }))
+}
+
+function mapViewFromConfig(mapConfig) {
+  const view = mapConfig?.view
+  if (!view) return mapView
+  return {
+    latitude: view.centerLat,
+    longitude: view.centerLon,
+    zoom: view.zoom,
+    minZoom: view.minZoom,
+    maxZoom: view.maxZoom,
+  }
+}
 
 /** A call the signed-in user may not be allowed to make; the session still has to build. */
 async function soft(promise, fallback) {
@@ -38,10 +74,11 @@ export async function buildSession(me) {
   const canScenario = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_SCENARIO)
   const canGame = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_GAME)
 
-  const [themeRows, sides, scenarioRows] = await Promise.all([
+  const [themeRows, sides, scenarioRows, mapConfig] = await Promise.all([
     soft(get('/themes'), []),
     soft(get('/sides'), []),
     canScenario || canGame ? soft(get('/scenarios'), []) : Promise.resolve([]),
+    soft(get('/map/config'), null),
   ])
 
   const gameLists = canGame
@@ -81,23 +118,15 @@ export async function buildSession(me) {
     sections: sectionsForFunctionalities(functionalities),
     resources: [],
     plans: [],
-    // Map chrome placeholders only: the map service is not part of this API yet.
-    filters: mapFilters.map(({ id, label, group, layers, base, transparent }) => ({
-      id,
-      label,
-      group,
-      layers,
-      base,
-      transparent,
-      visible: Boolean(DEFAULT_VISIBLE[id]),
-    })),
+    filters: filtersFromMapConfig(mapConfig),
     phases,
     canSelectScenario: canScenario,
     canSelectGame: canGame,
     canControlGame: canGame,
-    mapView,
+    mapView: mapViewFromConfig(mapConfig),
     plannedCenters,
-    mapService,
+    mapService: mapConfig?.server?.wmsUrl || mapService,
+    mapConfig,
     clockStart,
     exerciseTitle: 'Exercise GIS Warplan',
     classification: 'EXERCISE',

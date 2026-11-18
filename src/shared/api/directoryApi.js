@@ -5,6 +5,7 @@ import { swatchById, swatches } from '../theme/swatches'
 import { ApiError } from './errors'
 import { currentSnapshot, getIdentity, setRemote } from './directoryRemote'
 import { del, get, patch, post, put } from './http'
+import { applyMapCatalog } from './directory'
 import { numericId, roleFromEntity, sideFromEntity, themeFromEntity, userFromEntity } from './mappers'
 import { setToken } from './tokenStore'
 
@@ -40,12 +41,13 @@ export async function loadWorkbench(userId) {
   const canRoles = hasAny(functionalities, FunctionalityCodes.MANAGE_ROLES, FunctionalityCodes.MANAGE_USERS, FunctionalityCodes.MARK_AS_USER)
   const canFunctionalities = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_ROLES)
 
-  const [sideRows, themeRows, roleRows, userRows, functionalityRows] = await Promise.all([
+  const [sideRows, themeRows, roleRows, userRows, functionalityRows, mapConfig] = await Promise.all([
     soft(get('/sides'), []),
     soft(get('/themes'), []),
     canRoles ? soft(get('/roles'), []) : Promise.resolve([]),
     canUsers ? soft(get('/users'), []) : Promise.resolve([]),
     canFunctionalities ? soft(get('/functionalities'), []) : Promise.resolve([]),
+    soft(get('/map/config'), null),
   ])
 
   const sides = sideRows.map(sideFromEntity)
@@ -53,6 +55,8 @@ export async function loadWorkbench(userId) {
   const users = userRows.map((row) =>
     userFromEntity(row, { roles: roleRows, sides: sideRows }),
   ).map((user) => ({ ...user, protected: user.name === 'APEX' }))
+
+  applyMapCatalog(mapConfig)
 
   setRemote({
     users,
@@ -63,8 +67,9 @@ export async function loadWorkbench(userId) {
     swatches: swatches.map((item) => ({ ...item, takenBy: null })),
     functionalityCatalog: functionalityRows.map((row) => ({ id: row.id, code: row.code, name: row.name, description: row.description || '' })),
     access: [...functionalities],
+    mapConfig,
   })
-  logger.info('workbench.loaded', { userId, users: users.length, sides: sides.length, roles: roles.length })
+  logger.info('workbench.loaded', { userId, users: users.length, sides: sides.length, roles: roles.length, mapLayers: mapConfig?.layers?.length || 0 })
   return currentSnapshot(userId)
 }
 
