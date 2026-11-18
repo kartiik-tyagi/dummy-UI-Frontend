@@ -2,7 +2,7 @@
 
 ## Circular progress
 
-A spinner. `LoadingState` in `src/shared/ui/LoadingState.jsx` is the full-panel form. Use it for “Opening Jayant” and “Restoring the session”.
+A spinner. `LoadingState` in `src/shared/ui/LoadingState.jsx` is the full-panel form. Use it for “Opening GIS Warplan” and “Restoring the session”.
 
 ```jsx
 import { CircularProgress } from '@mui/material'
@@ -74,7 +74,7 @@ Prefer a disabled button and a toast over a backdrop that blocks the whole pictu
 
 | Moment | UI |
 | --- | --- |
-| Login context request | `LoadingState` “Opening Jayant” |
+| Login context request | `LoadingState` “Opening GIS Warplan” |
 | Session restore | `LoadingState` “Restoring the session” |
 | Workbench request | The shell can show, the panels wait on `ready` |
 | A mutation | The button disables, the toast reports failure |

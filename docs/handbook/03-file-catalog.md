@@ -6,7 +6,7 @@ Every file under `src/` that the app loads. Paths are from the project root. “
 
 | File | Purpose |
 | --- | --- |
-| `index.html` | The only HTML page. Title starts as “DRDO Jayant”. Root node is `#root`. |
+| `index.html` | The only HTML page. Title starts as “GIS Warplan”. Root node is `#root`. |
 | `vite.config.js` | React plugin. Dev `127.0.0.1:5173`. Preview `127.0.0.1:4173`. Both strict. |
 | `src/main.jsx` | `createRoot`, `StrictMode`, fonts, CSS. |
 | `src/index.css` | Page height. The map needs a parent with a real height. |
@@ -38,13 +38,13 @@ Every file under `src/` that the app loads. Paths are from the project root. “
 | `src/features/session/useSessionStore.js` | Sign-in, restore, sign-out, scenario, game, theme, filters, phases, clock, `seek`. |
 | `src/features/session/useSections.js` | The four layout sections from `session.sections`. Selection does not open a page. |
 | `src/features/session/useChrome.js` | Which panel is open, whether the rail is expanded, the user menu. Not persisted. |
-| `src/shared/lib/sessionKey.js` | Read and write `jayant.session` and `jayant.exercise`. |
+| `src/shared/lib/sessionKey.js` | Read and write `gis-warplan.session` and `gis-warplan.exercise`. |
 | `src/shared/lib/logger.js` | `info`, `warn`, `error`. |
 | `src/shared/lib/gameStatus.js` | Labels Ready, Running, Paused, Ended. |
 | `src/shared/lib/tone.js` | Short beep. Swallows autoplay refusal. |
 | `src/shared/lib/empty.js` | `EMPTY_LIST` and `EMPTY_OBJECT` for Zustand selectors. |
 
-## Dummy API
+## API client
 
 | File | Purpose |
 | --- | --- |

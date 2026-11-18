@@ -160,7 +160,7 @@ export function setAppointmentTheme(userId, themeId) {
   if (!user || user.id !== 'apex') return false
   user.themeId = themeId
   try {
-    sessionStorage.setItem('jayant.apexTheme', themeId)
+    sessionStorage.setItem('gis-warplan.apexTheme', themeId)
   } catch (error) {
     logger.warn('theme.storage_unavailable', { message: error?.message || 'storage unavailable' })
   }
@@ -218,7 +218,7 @@ const users = [
 ]
 
 try {
-  const remembered = sessionStorage.getItem('jayant.apexTheme')
+  const remembered = sessionStorage.getItem('gis-warplan.apexTheme')
   const apex = users.find((item) => item.id === 'apex')
   if (apex && paletteById(remembered)) apex.themeId = remembered
 } catch (error) {

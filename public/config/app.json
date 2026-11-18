@@ -1,8 +1,8 @@
 {
-  "title": "DRDO Jayant",
+  "title": "GIS Warplan",
   "shortTitle": "JY",
   "subtitle": "War game simulation",
-  "exerciseName": "Exercise Jayant",
+  "exerciseName": "Exercise GIS Warplan",
   "version": "1.0.0",
   "defaultRoute": "/situation"
 }

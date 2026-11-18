@@ -20,8 +20,8 @@ Password `123`. APEX can do everything. CoSC can change the scenario. Theatre, a
 
 | Key | Value |
 | --- | --- |
-| `jayant.session` | `{ "userId": "apex" }` |
-| `jayant.exercise` | `{ "scenarioId": "southern", "gameId": "bravo" }` |
+| `gis-warplan.session` | `{ "userId": "apex" }` |
+| `gis-warplan.exercise` | `{ "scenarioId": "southern", "gameId": "bravo" }` |
 
 ## Ports
 
@@ -64,7 +64,7 @@ commit((userId) => api.setFlag(userId, 'featureTable', false))
 | layout-3 | Dual rail. Tools on the left, application menu on the right |
 | layout-4 | Command band. Named application band, tools on request |
 
-Sections, from the dummy API: Scenario management, Game, Standard data, User management. They do not open a page. Map tools do open a panel.
+Sections, from the API client: Scenario management, Game, Standard data, User management. They do not open a page. Map tools do open a panel.
 
 Copy shared files. Do not copy `src/shell/Shell.jsx`.
 

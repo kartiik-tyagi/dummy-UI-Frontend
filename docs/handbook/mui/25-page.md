@@ -1,6 +1,6 @@
 # A whole page
 
-Navbar, sidebar, content, and footer in one column that fills the viewport. This is a general page shape. Jayant’s shells all keep a command bar and a readout footer, and they place the application menu and the map tools differently. Copy a shell only when you mean that frame.
+Navbar, sidebar, content, and footer in one column that fills the viewport. This is a general page shape. GIS Warplan’s shells all keep a command bar and a readout footer, and they place the application menu and the map tools differently. Copy a shell only when you mean that frame.
 
 ```jsx
 import { useState } from 'react'
@@ -99,7 +99,7 @@ export function Frame({ title, items, current, onSelect, children }) {
           bgcolor: 'background.paper',
         }}
       >
-        <Typography variant="caption" color="text.secondary">Jayant</Typography>
+        <Typography variant="caption" color="text.secondary">GIS Warplan</Typography>
       </Box>
     </Box>
   )

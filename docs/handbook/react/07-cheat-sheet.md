@@ -203,7 +203,7 @@ Map instance in a ref. Create and destroy in an effect. `modify.on('modifyend')`
 | Session | `src/features/session/useSessionStore.js` |
 | Workbench | `src/features/directory/useDirectoryStore.js` |
 | HTTP-shaped API | `src/shared/api/client.js` |
-| Dummy behaviour | `src/shared/api/directory.js` and `fixtures.js` |
+| API stand-in behaviour | `src/shared/api/directory.js` and `fixtures.js` |
 | Theme | `src/shared/theme/createAppTheme.js` |
 | Empty selectors | `src/shared/lib/empty.js` |
 

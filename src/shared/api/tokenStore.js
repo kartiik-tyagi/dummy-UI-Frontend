@@ -1,7 +1,7 @@
 import { logger } from '../lib/logger'
 
 /** Bearer token: kept in module memory; mirrored to sessionStorage so a reload can resume the session. */
-export const TOKEN_KEY = 'jayant.token'
+export const TOKEN_KEY = 'gis-warplan.token'
 
 let token = null
 let hydrated = false

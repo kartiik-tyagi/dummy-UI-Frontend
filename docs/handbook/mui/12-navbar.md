@@ -14,7 +14,7 @@ import MenuIcon from '@mui/icons-material/Menu'
       <MenuIcon />
     </IconButton>
     <Typography variant="subtitle2" sx={{ letterSpacing: '0.14em', flexGrow: 1 }}>
-      JAYANT
+      GIS WARPLAN
     </Typography>
     <Button color="inherit" onClick={signOut}>Sign out</Button>
   </Toolbar>

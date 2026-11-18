@@ -44,7 +44,7 @@ A package name (`react`, `ol/Map`, `@mui/material`) must exist in `node_modules`
 1. Is the component mounted? A route that redirected, or a panel id that is not the open one, does not run the click handler.
 2. Is the button’s `onClick` a function? `onClick={save()}` runs during render.
 3. Did the handler return early? `if (!userId) return`.
-4. Did the API throw? The toast is the message. The console has `[jayant]` and the level `warn` or `error`.
+4. Did the API throw? The toast is the message. The console has `[gis-warplan]` and the level `warn` or `error`.
 5. Did `apply` ignore the snapshot because `JSON.stringify` matched the previous one? The UI will not re-render. That is correct when nothing changed. It is a bug if your function mutated an object inside the old snapshot and returned the same tree.
 
 Log with the project logger, not a permanent `console.log`:
@@ -59,7 +59,7 @@ Never put a password or a token in the fields.
 
 ## React APIs this app does not use
 
-You can use them in new code. The versions match React 19. None of these are required to extend Jayant.
+You can use them in new code. The versions match React 19. None of these are required to extend GIS Warplan.
 
 ### `useReducer`
 

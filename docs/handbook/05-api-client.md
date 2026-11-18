@@ -25,7 +25,7 @@ All of these wait a short time (`window.setTimeout`) so the UI can show a busy s
 
 The session object includes `profile`, `theme`, `themes`, `scenarios`, `games`, `navigation`, `resources`, `plans`, `filters`, `phases`, `canSelectScenario`, `canSelectGame`, `canControlGame`, `mapView`, `mapService`, `clockStart`, `demoMode`.
 
-`demoMode` on the session is `true` for every appointment in the dummy data. The Demo badge also follows the `demoMode` feature flag once the directory has loaded.
+`demoMode` on the session is `true` for every appointment in the seed data. The Demo badge also follows the `demoMode` feature flag once the directory has loaded.
 
 ## Directory functions
 
@@ -91,7 +91,7 @@ Blue lead starts inside Holding area, so the alert list is not empty after the f
 | `updateGraphic` | Owner only. A properties patch keeps existing comments and `sharedWith`. |
 | `deleteGraphic` | Owner only. |
 | `undoPlanning` / `redoPlanning` | Stack of graphic lists. |
-| `exportPlan` | GeoJSON `FeatureCollection`. The panel downloads `jayant-plan.geojson`. The download is the browser using API data. |
+| `exportPlan` | GeoJSON `FeatureCollection`. The panel downloads `gis-warplan-plan.geojson`. The download is the browser using API data. |
 | `setPlanView` | `mine` or `shared`. Requires the share flag. |
 | `shareGraphic` | User ids. Rejects unknown ids and sharing with yourself. |
 | `addComment` | Instructor text on a graphic. |

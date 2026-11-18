@@ -52,7 +52,7 @@ Arrays you will see every day:
 | `push` | New length | Yes |
 | `splice` | Removed items | Yes |
 
-The dummy API mutates its module-level arrays (`features.push`). React state does not. In a component, copy, then set state. Do not `push` onto an array you stored in state and expect a re-render. The array’s identity did not change.
+The API client mutates its module-level arrays (`features.push`). React state does not. In a component, copy, then set state. Do not `push` onto an array you stored in state and expect a re-render. The array’s identity did not change.
 
 ## Functions
 
@@ -104,9 +104,9 @@ export default function App() {}
 ## JSON and storage
 
 ```js
-const raw = sessionStorage.getItem('jayant.session')
+const raw = sessionStorage.getItem('gis-warplan.session')
 const parsed = JSON.parse(raw)          // throws on bad JSON
-sessionStorage.setItem('jayant.session', JSON.stringify({ userId }))
+sessionStorage.setItem('gis-warplan.session', JSON.stringify({ userId }))
 ```
 
 `JSON.stringify` drops functions and turns `Map` into `{}`. The password map is not in the snapshot, which is why it is not persisted. `structuredClone` in the API copies plain data. It throws on functions.

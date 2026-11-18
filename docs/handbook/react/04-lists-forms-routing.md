@@ -113,7 +113,7 @@ Close a dialog in `.then`, not before the promise. On failure the toast is alrea
 
 ## Showing a validation message
 
-The dummy API throws `ApiError`. `useDirectoryStore.run` toasts `error.message` and rethrows. You usually do not render the message yourself.
+The API client throws `ApiError`. `useDirectoryStore.run` toasts `error.message` and rethrows. You usually do not render the message yourself.
 
 When you do (login uses TanStack Query):
 
@@ -155,7 +155,7 @@ const blob = new Blob([JSON.stringify(collection)], { type: 'application/geo+jso
 const url = URL.createObjectURL(blob)
 const link = document.createElement('a')
 link.href = url
-link.download = 'jayant-plan.geojson'
+link.download = 'gis-warplan-plan.geojson'
 link.click()
 URL.revokeObjectURL(url)
 ```

@@ -1,4 +1,4 @@
-# Jayant frontend handbook
+# GIS Warplan frontend handbook
 
 Human reference for people working **without the internet**. The running code is the authority. If a page here disagrees with a file under `src/`, trust the file and correct this handbook later.
 
@@ -8,14 +8,14 @@ This book has three jobs:
 2. Teach enough **React** that you can do that work, and ordinary React work, from these pages alone.
 3. Teach **Material UI 9** and styling the same way, one component at a time, for the libraries installed in this folder.
 
-You do not need a backend. Sign-in, the map tools, planning, the exercise, and administration all talk to a dummy API inside `src/shared/api/`. A future real server replaces that folder. The screens stay.
+You do not need a backend. Sign-in, the map tools, planning, the exercise, and administration all talk to a API client inside `src/shared/api/`. A future real server replaces that folder. The screens stay.
 
 ## Read this first
 
 | Order | Page | You will be able to |
 | --- | --- | --- |
 | 1 | [Run, build, and the four layouts](01-run-and-branches.md) | Start the app on this machine and know which branch you are on |
-| 2 | [How the app is built](02-how-the-app-is-built.md) | Follow a click from the browser to the dummy API and back |
+| 2 | [How the app is built](02-how-the-app-is-built.md) | Follow a click from the browser to the API client and back |
 | 3 | [File catalog](03-file-catalog.md) | Open the right file the first time |
 | 4 | [People, session, and the exercise](04-people-session-and-exercise.md) | Sign in, restore a refresh, change scenario and game |
 | 5 | [API client](05-api-client.md) | Add or replace data without touching a screen |
@@ -54,7 +54,7 @@ Styling, from plain CSS through `sx` and `styled`, is [Styling](styling/README.m
 | Add a feature switch | [07 — Recipes](07-recipes.md), recipe 2 |
 | Change only one layout | [01 — Branches](01-run-and-branches.md) and [06 — Screens](06-screens-map-and-tools.md) |
 | Put a change on all four layouts | [07 — Recipes](07-recipes.md), recipe 8 |
-| Replace the dummy API with HTTP later | [05 — API client](05-api-client.md) |
+| Replace the API client with HTTP later | [05 — API client](05-api-client.md) |
 | The page is blank | [08 — Debugging](08-debugging.md) |
 | Learn a React hook | [Hooks](react/09-hooks.md) |
 | See why React re-rendered | [How React works](react/08-how-react-works.md) |
@@ -65,7 +65,7 @@ Styling, from plain CSS through `sx` and `styled`, is [Styling](styling/README.m
 
 ## What this application is
 
-Jayant is a GIS picture for an exercise. People sign in by **appointment** (APEX, CoSC, a theatre commander), not by a personal name. The map is the product. Filters, resources, plans, themes, and the menu come from the server stand-in. Layout geometry is fixed in each branch’s `src/shell/Shell.jsx`.
+GIS Warplan is a GIS picture for an exercise. People sign in by **appointment** (APEX, CoSC, a theatre commander), not by a personal name. The map is the product. Filters, resources, plans, themes, and the menu come from the server stand-in. Layout geometry is fixed in each branch’s `src/shell/Shell.jsx`.
 
 There is no ORBAT screen. Do not add one unless someone asks for a new product.
 
@@ -79,7 +79,7 @@ These exist in the older GIS Foundation application and are **not** built here. 
 - A real authentication server
 - Server-enforced role permissions
 - An in-app config editor for JSON files
-- A live STOMP / Kafka / ActiveMQ client (the stream panel is a dummy walker inside the API)
+- A live STOMP / Kafka / ActiveMQ client (the stream panel is a stream walker inside the API)
 
 `public/config/*.json` is leftover. No file under `src/` reads it. Editing those JSON files changes nothing on screen.
 

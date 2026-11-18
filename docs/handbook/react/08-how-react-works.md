@@ -157,7 +157,7 @@ React 19 lets a function component accept `ref` as a normal prop. `forwardRef` s
 
 `startTransition(() => setQuery(text))` marks the update as non-urgent. React keeps the old UI on screen and can interrupt the slow render if a new click arrives. `useDeferredValue` is the same idea for a value you already have. The lists in this app are small enough that neither is required.
 
-## What this means for Jayant
+## What this means for GIS Warplan
 
 | You see | The mechanism |
 | --- | --- |

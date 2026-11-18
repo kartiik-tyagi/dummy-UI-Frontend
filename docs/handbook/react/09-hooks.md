@@ -78,9 +78,9 @@ The third argument, when you pass it, is an init function: `useReducer(reducer, 
 
 ```jsx
 useEffect(() => {
-  document.title = 'Jayant'
+  document.title = 'GIS Warplan'
   return () => {
-    document.title = 'Jayant'
+    document.title = 'GIS Warplan'
   }
 }, [])
 ```

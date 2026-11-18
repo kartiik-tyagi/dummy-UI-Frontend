@@ -117,8 +117,8 @@ Say why the change exists.
 
 | Stored | Key | Survives refresh? | Cleared by sign-out? |
 | --- | --- | --- | --- |
-| Signed-in user id only | `sessionStorage` `jayant.session` | Yes | Yes |
-| Scenario id and game id | `sessionStorage` `jayant.exercise` | Yes | No. The exercise is shared. |
+| Signed-in user id only | `sessionStorage` `gis-warplan.session` | Yes | Yes |
+| Scenario id and game id | `sessionStorage` `gis-warplan.exercise` | Yes | No. The exercise is shared. |
 | Password | nowhere | — | Never store it |
 | Map filters | memory | No. They return to the role defaults. | — |
 | Exercise clock and game status | memory | No. Status returns to Ready. | — |

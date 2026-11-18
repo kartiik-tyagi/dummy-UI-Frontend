@@ -1,6 +1,6 @@
 function write(level, event, fields = {}) {
   const record = { time: new Date().toISOString(), level, event, ...fields }
-  const line = `[jayant] ${event}`
+  const line = `[gis-warplan] ${event}`
   if (level === 'error') console.error(line, record)
   else if (level === 'warn') console.warn(line, record)
   else console.info(line, record)

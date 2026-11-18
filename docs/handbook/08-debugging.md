@@ -10,14 +10,14 @@
 | Wrong menu | `useNavigation` and `navigationFor` in `directory.js`. |
 | Map is a thin line or missing | Parent height. See below. |
 | Tiles missing, tools fine | GeoServer on port 8080, or the basemap was switched to OSM. |
-| Sign-in loop | `sessionStorage` key `jayant.session`. |
+| Sign-in loop | `sessionStorage` key `gis-warplan.session`. |
 | Slider or draw “does nothing” | `revision` bumping every tick. See below. |
 
-Open the console with F12. Filter on `jayant`.
+Open the console with F12. Filter on `gis-warplan`.
 
 ## Log lines
 
-Shape: `[jayant] event` and an object `{ time, level, event, ...fields }`.
+Shape: `[gis-warplan] event` and an object `{ time, level, event, ...fields }`.
 
 There is no password field. If you add a log and the object could contain a password, you have a bug.
 
@@ -100,16 +100,16 @@ The map div is absolutely positioned inside `MapStage`. The stage must be `flex:
 | Password `123` fails after you changed it, then refreshed | The new password lived in module memory. Refresh reseeds `123`. |
 | Filters reset | By design. They are not in `sessionStorage`. |
 | Clock is Ready after refresh | By design. |
-| Scenario stayed on Southern Approach | `jayant.exercise` survived. Sign-out does not clear it. |
-| “The saved session is not valid.” | Corrupt `jayant.session`. It is removed. |
+| Scenario stayed on Southern Approach | `gis-warplan.exercise` survived. Sign-out does not clear it. |
+| “The saved session is not valid.” | Corrupt `gis-warplan.session`. It is removed. |
 | Game Charlie cannot be chosen | `open: false`. |
 | “End the game before changing the scenario.” | Status is running or paused. End it, then confirm. The dialog stays open. |
 
 Clear both keys from the console if you need a clean login:
 
 ```js
-sessionStorage.removeItem('jayant.session')
-sessionStorage.removeItem('jayant.exercise')
+sessionStorage.removeItem('gis-warplan.session')
+sessionStorage.removeItem('gis-warplan.exercise')
 ```
 
 ## MUI controls that are hard to see

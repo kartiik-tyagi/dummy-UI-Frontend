@@ -2,7 +2,7 @@
 
 ## The sentence that rules the code
 
-Screens and stores call `src/shared/api/client.js`. They do not import `fixtures.js` or `directory.js`. Those two files are the dummy server. When a real server exists, you change the API folder. You do not rewrite a panel to “know” HTTP.
+Screens and stores call `src/shared/api/client.js`. They do not import `fixtures.js` or `directory.js`. Those two files are the local API stand-in. When a real server exists, you change the API folder. You do not rewrite a panel to “know” HTTP.
 
 ```text
 Browser
@@ -27,7 +27,7 @@ Browser
 3. `App.jsx` wraps providers. It has no business rules.
 4. `ThemeBridge` calls `getLoginContext()` through TanStack Query so the login page is themed before anyone signs in.
 5. `SessionGate` calls `restore()`. Until `ready` is true it shows “Restoring the session”. It does not mount the shell during that wait, so the directory does not load twice for a signed-in user.
-6. `restore` reads `jayant.session`. No user id: show login, and a notice if the saved JSON was corrupt. A user id: `resumeSession`, then the shell.
+6. `restore` reads `gis-warplan.session`. No user id: show login, and a notice if the saved JSON was corrupt. A user id: `resumeSession`, then the shell.
 7. `DirectoryGate` calls `load(userId)` which calls `loadWorkbench` and then `subscribeWorkbench`. Sign-out sets `userId` to null and the cleanup calls `reset()`.
 
 `StrictMode` in development runs effects twice: setup, cleanup, setup. `DirectoryGate` is written for that. `restore` uses a module-level promise and `if (get().ready) return` so two calls do not sign the user in twice.
@@ -102,4 +102,4 @@ useDirectoryStore((state) => state.data?.alerts ?? EMPTY_LIST)
 
 ## Logging
 
-`src/shared/lib/logger.js` writes `[jayant] event` plus a record to the console. Log sign-in, session restore, directory failure, and rejected commands. Do not log the password. Do not log every slider tick. Opacity, fill, bearing, and map pan are continuous. They commit once (`onChangeCommitted` or a debounced `moveend`) and most of those commits are not log lines. A failed validation is a warn. See [Debugging](08-debugging.md) for the event names.
+`src/shared/lib/logger.js` writes `[gis-warplan] event` plus a record to the console. Log sign-in, session restore, directory failure, and rejected commands. Do not log the password. Do not log every slider tick. Opacity, fill, bearing, and map pan are continuous. They commit once (`onChangeCommitted` or a debounced `moveend`) and most of those commits are not log lines. A failed validation is a warn. See [Debugging](08-debugging.md) for the event names.

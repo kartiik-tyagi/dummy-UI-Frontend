@@ -6,7 +6,7 @@ Three ways state lives in this app:
 | --- | --- | --- |
 | `useState` in a component | One dialog, one field | No |
 | Zustand `useSessionStore` | Who is signed in, clock, phase | The user id only, via `sessionStorage` |
-| Zustand `useDirectoryStore` | Workbench snapshot, draw tool, open dialogs | No. Reloaded from the dummy API after sign-in |
+| Zustand `useDirectoryStore` | Workbench snapshot, draw tool, open dialogs | No. Reloaded from the API client after sign-in |
 | TanStack Query | Login context, and the login mutation | No. `gcTime` is 5 minutes in memory |
 
 Do not add `persist` from Zustand. Exercise data must not be copied into `localStorage`. The two `sessionStorage` keys are written by `sessionKey.js` and nowhere else.
@@ -100,7 +100,7 @@ const context = useQuery({
   queryFn: getLoginContext,
 })
 
-if (context.isPending) return <LoadingState label="Opening Jayant" />
+if (context.isPending) return <LoadingState label="Opening GIS Warplan" />
 if (context.isError) return <ErrorState message={context.error.message} onRetry={() => context.refetch()} />
 const data = context.data
 ```
@@ -116,7 +116,7 @@ const data = context.data
 
 `queryKey` identifies the cache. `['login-context']` and `['login-context', userId]` are different entries. Put every variable the function closes over into the key.
 
-`queryFn` receives `{ queryKey, signal }`. Pass `signal` to `fetch` if you add HTTP later, so a cancelled query aborts. The dummy functions ignore it.
+`queryFn` receives `{ queryKey, signal }`. Pass `signal` to `fetch` if you add HTTP later, so a cancelled query aborts. The API functions ignore it.
 
 ```jsx
 const attempt = useMutation({

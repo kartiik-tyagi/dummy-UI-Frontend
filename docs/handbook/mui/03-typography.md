@@ -4,7 +4,7 @@
 import { Typography } from '@mui/material'
 
 <Typography variant="h6" component="h1">
-  Jayant
+  GIS Warplan
 </Typography>
 <Typography variant="body2" color="text.secondary" sx={{ display: 'block' }}>
   Northern Approach
@@ -30,7 +30,7 @@ import { Typography } from '@mui/material'
 `component` overrides the element without changing the look:
 
 ```jsx
-<Typography variant="h6" component="h1">Jayant</Typography>
+<Typography variant="h6" component="h1">GIS Warplan</Typography>
 ```
 
 The visual style is `h6`. The document outline sees `h1`. Use that when the design size and the heading level disagree. Do not skip heading levels for decoration. A page can have one `h1`.

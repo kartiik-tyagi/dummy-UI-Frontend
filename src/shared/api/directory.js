@@ -141,7 +141,7 @@ const scenario = {
 }
 
 let simulation = { cadenceMs: 1000, mode: 'TIME', playback: false, seekSec: 0, durationSec: 7200 }
-let stream = { status: 'offline', enabled: false, wsUrl: 'ws://127.0.0.1:8080/ws', topic: '/topic/jayant.positions' }
+let stream = { status: 'offline', enabled: false, wsUrl: 'ws://127.0.0.1:8080/ws', topic: '/topic/gis-warplan.positions' }
 let settings = {
   source: 'wms',
   geoserverUrl: mapService,

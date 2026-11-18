@@ -21,7 +21,7 @@ import { Alert } from '@mui/material'
 
 ```jsx
 <Alert severity="error">
-  <AlertTitle>Jayant is unavailable</AlertTitle>
+  <AlertTitle>GIS Warplan is unavailable</AlertTitle>
   The session could not be read.
 </Alert>
 ```

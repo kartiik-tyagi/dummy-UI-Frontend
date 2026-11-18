@@ -31,7 +31,7 @@ Put it in the group that matches the job. Gate it with a flag if it can be switc
 
 No screen should read a boolean you invented in the component. The snapshot’s `flags` object is the source.
 
-## 3. Add a dummy API function
+## 3. Add a API client function
 
 ```js
 export function renameFeature(userId, featureId, name) {

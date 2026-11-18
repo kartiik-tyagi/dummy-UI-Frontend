@@ -1,7 +1,7 @@
 import { logger } from './logger'
 
-const KEY = 'jayant.session'
-const EXERCISE_KEY = 'jayant.exercise'
+const KEY = 'gis-warplan.session'
+const EXERCISE_KEY = 'gis-warplan.exercise'
 
 export function readSessionKey() {
   try {

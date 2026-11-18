@@ -4,7 +4,7 @@ Appointments are positions. The screen shows the title (APEX, CoSC), not a perso
 
 ## Password
 
-The dummy password for every appointment is `123` until that appointment changes it. The check lives in `fixtures.js` (`checkPassword`, `changePassword`) in a `Map` that starts empty. An empty map means “use `123`”.
+The default password for every appointment is `123` until that appointment changes it. The check lives in `fixtures.js` (`checkPassword`, `changePassword`) in a `Map` that starts empty. An empty map means “use `123`”.
 
 `updatePassword` in `directory.js` returns a snapshot on success and throws:
 
@@ -18,7 +18,7 @@ The API always throws code `VALIDATION` for these. The message is what the toast
 
 The dialog stays open on failure so the person can try again. Never log the password. Never put it in `sessionStorage`.
 
-A refresh forgets a changed password, because the map lives in the module. That is dummy-server behaviour.
+A refresh forgets a changed password, because the map lives in the module. That is API-client behaviour.
 
 ## Appointments
 
@@ -68,7 +68,7 @@ On load, `SessionGate` calls `restore`:
 
 `writeSessionKey` failure still signs in for this tab and logs `persisted: false`. The next refresh asks for the password again.
 
-Sign-out removes `jayant.session`, logs `auth.signed_out`, and resets clock status to Ready. It does not remove `jayant.exercise`.
+Sign-out removes `gis-warplan.session`, logs `auth.signed_out`, and resets clock status to Ready. It does not remove `gis-warplan.exercise`.
 
 ## Scenario and game
 
@@ -87,7 +87,7 @@ Blocked while status is `running` or `paused`:
 
 The store checks the rule and logs `scenario.change_rejected` or `game.change_rejected` **before** calling the API, so a blocked click is one log line, not two. The API checks again.
 
-A successful change writes `jayant.exercise` as `{ scenarioId, gameId }` and logs `scenario.changed` or `game.changed`. On the next page load, `hydrateExercise()` in the API adopts that choice. An unknown scenario or a closed or unknown game is dropped with a warning. The default remains.
+A successful change writes `gis-warplan.exercise` as `{ scenarioId, gameId }` and logs `scenario.changed` or `game.changed`. On the next page load, `hydrateExercise()` in the API adopts that choice. An unknown scenario or a closed or unknown game is dropped with a warning. The default remains.
 
 Labels on the bar are “Scenario” and “Game”.
 
