@@ -6,8 +6,6 @@ import { setIdentity, setRemote } from './directoryRemote'
 import { themeFromEntity } from './mappers'
 import { buildSession } from './session'
 import { clearToken, getToken, setToken } from './tokenStore'
-import { loginPalette } from '../theme/palettes'
-
 export { ApiError } from './errors'
 
 const themeSchema = z.object({
@@ -63,18 +61,16 @@ const filterSchema = z.object({
 })
 
 const loginContextSchema = z.object({
+  applicationName: z.string(),
   exerciseTitle: z.string(),
-  systemName: z.string(),
-  classification: z.string(),
-  purpose: z.string(),
-  accessNotice: z.string(),
-  activeScenarioName: z.string(),
-  activeGameName: z.string(),
-  gameOpen: z.boolean(),
-  backgroundImage: z.string(),
-  passwordHint: z.string(),
-  theme: themeSchema,
-  users: z.array(userSchema).min(1),
+  activeUsers: z.array(z.object({ id: z.union([z.number(), z.string()]), name: z.string() })).min(1),
+  loginTheme: z.object({
+    id: z.union([z.number(), z.string()]),
+    name: z.string(),
+    description: z.string().nullable().optional(),
+    defaultTheme: z.boolean(),
+    configJson: z.record(z.any()).nullable().optional(),
+  }),
 })
 
 const meSchema = z.object({
@@ -114,7 +110,7 @@ const sessionSchema = z.object({
   resources: z.array(z.object({ id: z.string(), name: z.string(), detail: z.string(), status: z.string() })),
   plans: z.array(z.object({ id: z.string(), name: z.string(), detail: z.string(), status: z.string() })),
   filters: z.array(filterSchema).min(1),
-  phases: z.array(z.object({ id: z.string(), label: z.string(), filterIds: z.array(z.string()) })),
+  phases: z.array(z.object({ id: z.string(), label: z.string(), filterIds: z.array(z.string()) })).default([]),
   canSelectScenario: z.boolean(),
   canSelectGame: z.boolean(),
   canControlGame: z.boolean(),
@@ -140,37 +136,38 @@ const sessionSchema = z.object({
   me: meSchema,
 })
 
-function staticLoginContext() {
-  return {
-    exerciseTitle: 'Exercise GIS Warplan',
-    systemName: 'GIS WARPLAN',
-    classification: 'EXERCISE',
-    purpose: 'Situation picture',
-    accessNotice: 'Authorised users only',
-    activeScenarioName: '',
-    activeGameName: '',
-    gameOpen: true,
-    backgroundImage: '/login-background.png',
-    passwordHint: 'Default administrator: APEX / 123',
-    theme: loginPalette,
-    users: [{ id: 'APEX', title: 'APEX', role: 'Administrator', service: 'Exercise control', avatarUrl: '' }],
-  }
-}
-
 /**
- * The backend has no public login-context endpoint yet, so the shell fields are static and the user is typed.
- * If the endpoint appears later it is used as is.
+ * Public bootstrap for the login screen. No fixture fallback — backend must answer.
  */
 export async function getLoginContext() {
-  const fallback = staticLoginContext()
-  try {
-    const remote = await get('/auth/login-context', undefined, { auth: false })
-    const parsed = loginContextSchema.safeParse({ ...fallback, ...remote })
-    if (parsed.success) return parsed.data
-  } catch (error) {
-    logger.info('login_context.static', { code: error?.code || 'UNKNOWN' })
+  const remote = await get('/auth/login-context', undefined, { auth: false })
+  const parsed = loginContextSchema.safeParse(remote)
+  if (!parsed.success) {
+    logger.error('login_context.invalid', {
+      issues: parsed.error.issues.slice(0, 3).map((issue) => `${issue.path.join('.')}: ${issue.message}`),
+    })
+    throw new ApiError('The login context from the server is not valid.', 'UNAVAILABLE')
   }
-  return fallback
+  const theme = themeFromEntity(parsed.data.loginTheme)
+  return {
+    applicationName: parsed.data.applicationName,
+    exerciseTitle: parsed.data.exerciseTitle,
+    systemName: String(parsed.data.applicationName || 'GIS Warplan').toUpperCase(),
+    classification: 'EXERCISE',
+    purpose: 'Authorised users only',
+    accessNotice: 'Select your account to sign in',
+    backgroundImage: '/login-background.png',
+    theme,
+    users: parsed.data.activeUsers.map((user) => ({
+      id: String(user.name),
+      numericId: user.id,
+      title: user.name,
+      name: user.name,
+      role: '',
+      service: '',
+      avatarUrl: user.name === 'APEX' ? '/avatars/apex.svg' : '',
+    })),
+  }
 }
 
 function validate(session) {

@@ -7,25 +7,23 @@ import * as api from '../../shared/api/client'
 import { ApiError } from '../../shared/api/client'
 ```
 
-`client.js` owns login, resume, scenario, and game. It re-exports the directory. `directory.js` owns the picture. Both may import `fixtures.js` and the logger. A component may not.
+`client.js` owns login, resume, scenario, and game. It re-exports the directory. Users, sides, roles, themes, and map catalog come from `/api/v1`. A component may not import `directory.js` or `fixtures.js`.
 
 `ApiError` has `message` (shown to the person) and `code` (for logs and branches).
 
 ## Login and session functions
 
-All of these wait a short time (`window.setTimeout`) so the UI can show a busy state. They validate the result with Zod. A shape that does not match throws “The user profile could not be read.” or “The directory could not be read.” and logs `directory.unreadable`.
+They call the backend over HTTP and validate the result with Zod.
 
 | Function | Returns | Throws |
 | --- | --- | --- |
-| `getLoginContext()` | Exercise title, users, theme, active scenario and game names, background, password hint | Directory unreadable |
-| `login({ userId, password })` | Full session | Empty password, refused, unknown user |
-| `resumeSession(userId)` | Full session | Missing or unknown user |
-| `changeScenario({ userId, scenarioId })` | `{ activeScenarioId, name }` | Forbidden, missing, unknown |
-| `changeGame({ userId, gameId })` | `{ activeGameId, name }` | Forbidden, missing, closed, unknown |
+| `getLoginContext()` | Application name, active users, login theme (from `GET /auth/login-context`) | Unavailable / invalid payload |
+| `login({ userId, password })` | Full session | Validation, unauthorized, unavailable |
+| `resumeSession()` | Full session | Missing or invalid token |
+| `changeScenario({ scenarioId })` | Active scenario plus exercise delta | Forbidden, missing, unknown |
+| `changeGame({ gameId })` | Active game plus exercise delta | Forbidden, missing, unknown |
 
-The session object includes `profile`, `theme`, `themes`, `scenarios`, `games`, `navigation`, `resources`, `plans`, `filters`, `phases`, `canSelectScenario`, `canSelectGame`, `canControlGame`, `mapView`, `mapService`, `clockStart`, `demoMode`.
-
-`demoMode` on the session is `true` for every appointment in the seed data. The Demo badge also follows the `demoMode` feature flag once the directory has loaded.
+The session object includes `profile`, `theme`, `themes`, `scenarios`, `games`, `navigation`, `sections`, `filters` (from `/map/config`), `mapView`, `mapService`, `functionalities`, and `me`. Navigation is built only from `me.functionalityCodes`.
 
 ## Directory functions
 

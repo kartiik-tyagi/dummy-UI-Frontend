@@ -1,11 +1,9 @@
 import { useSessionStore } from '../../features/session/useSessionStore'
 import { EMPTY_LIST } from '../../shared/lib/empty'
-import { useDirectoryStore } from '../../features/directory/useDirectoryStore'
 
+/** Navigation comes only from session functionalities — never from local directory flags. */
 export function useNavigation() {
-  const sessionNavigation = useSessionStore((state) => state.session?.navigation ?? EMPTY_LIST)
-  const directoryNavigation = useDirectoryStore((state) => state.data?.navigation)
-  return directoryNavigation?.length ? directoryNavigation : sessionNavigation
+  return useSessionStore((state) => state.session?.navigation ?? EMPTY_LIST)
 }
 
 export function useSignedUserId() {

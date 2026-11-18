@@ -1,14 +1,11 @@
 import { FunctionalityCodes, hasFunctionality } from '../auth/functionalityCodes'
 import { canOpenDirectory, canOpenOrbat, isAdminLike } from '../auth/access'
 import { logger } from '../lib/logger'
-import { palettes } from '../theme/palettes'
-import { marks, swatchById, swatches } from '../theme/swatches'
+import { marks } from '../theme/swatches'
 import { getIdentity, getRemote, registerSnapshot } from './directoryRemote'
 import { ApiError } from './errors'
-import { listDirectoryUsers, mapService, osmService, registerSideThemes } from './fixtures'
+import { osmService } from './fixtures'
 
-// Users, sides, roles and their administration are real (HTTP). Everything else in this file (map features,
-// planning, replay, simulation, stream, flags) is still the in-memory stand-in until those APIs exist.
 export {
   assignUserSide,
   deleteRole,
@@ -35,124 +32,18 @@ function accessFor(userId) {
   }
 }
 
-const FLAG_LIST = [
-  { key: 'layerOpacity', label: 'Layer opacity', group: 'Map' },
-  { key: 'featureTable', label: 'Feature table', group: 'Map' },
-  { key: 'propertiesPanel', label: 'Properties', group: 'Map' },
-  { key: 'drawingTools', label: 'Drawing', group: 'Map' },
-  { key: 'measurementTools', label: 'Measure', group: 'Map' },
-  { key: 'sideMapIcons', label: 'Side markers', group: 'Map' },
-  { key: 'mapSettings', label: 'Map settings', group: 'Map' },
-  { key: 'planningCanvas', label: 'Planning board', group: 'Plan' },
-  { key: 'planningExport', label: 'Plan export', group: 'Plan' },
-  { key: 'planningShare', label: 'Share a plan', group: 'Plan' },
-  { key: 'planningReview', label: 'Plan comments', group: 'Plan' },
-  { key: 'planningPromote', label: 'Promote to zone', group: 'Plan' },
-  { key: 'geofenceAlerts', label: 'Geofence alerts', group: 'Exercise' },
-  { key: 'alertSound', label: 'Alert tone', group: 'Exercise' },
-  { key: 'alertsPanel', label: 'Alerts', group: 'Exercise' },
-  { key: 'sessionReplay', label: 'Session record and replay', group: 'Exercise' },
-  { key: 'scenarioPlayback', label: 'Scenario playback', group: 'Exercise' },
-  { key: 'simulationExtras', label: 'Simulation speed and playback', group: 'Exercise' },
-  { key: 'liveStream', label: 'Live position stream', group: 'Exercise' },
-  { key: 'statusBadge', label: 'Live status', group: 'Exercise' },
-  { key: 'zonesAdmin', label: 'Zones catalogue', group: 'Administration' },
-  { key: 'routesAdmin', label: 'Routes catalogue', group: 'Administration' },
-  { key: 'adminPanel', label: 'Users, sides, and roles', group: 'Administration' },
-  { key: 'demoMode', label: 'Demo badge', group: 'Administration' },
-]
-
-const flags = Object.fromEntries(FLAG_LIST.map((item) => [item.key, true]))
-
-const sides = [
-  { id: 'blue', name: 'Blue force', swatchId: 'blue', themeId: 'field-night', icon: 'shield' },
-  { id: 'red', name: 'Red force', swatchId: 'red', themeId: 'watch-night', icon: 'flag' },
-]
-
-registerSideThemes((sideId) => sides.find((item) => item.id === sideId)?.themeId || null)
-
-const roles = [
-  { id: 'control', name: 'Exercise control' },
-  { id: 'joint', name: 'Joint direction' },
-  { id: 'theatre', name: 'Theatre picture' },
-  { id: 'air', name: 'Air picture' },
-  { id: 'maritime', name: 'Maritime picture' },
-]
-
-let features = [
-  { id: 'unit-1', name: 'Blue lead', featureType: 'unit', layerId: 'units', sideId: 'blue', geometry: { type: 'Point', coordinates: [80.2, 26.4] }, properties: {} },
-  { id: 'unit-2', name: 'Red contact', featureType: 'unit', layerId: 'units', sideId: 'red', geometry: { type: 'Point', coordinates: [83.1, 24.8] }, properties: {} },
-  { id: 'route-1', name: 'Northern road', featureType: 'route', layerId: 'routes', sideId: 'blue', geometry: { type: 'LineString', coordinates: [[80.2, 26.4], [81.5, 25.6], [82.4, 24.9]] }, properties: { curved: false } },
-  { id: 'zone-1', name: 'Holding area', featureType: 'zone', layerId: 'zones', sideId: 'blue', geometry: { type: 'Polygon', coordinates: [[[79.6, 26.8], [80.8, 26.8], [80.8, 25.9], [79.6, 25.9], [79.6, 26.8]]] }, properties: {} },
-  { id: 'zone-2', name: 'Contact box', featureType: 'zone', layerId: 'zones', sideId: 'red', geometry: { type: 'Polygon', coordinates: [[[83.5, 25.2], [84.3, 25.2], [84.3, 24.4], [83.5, 24.4], [83.5, 25.2]]] }, properties: {} },
-]
-
-let graphics = [
-  {
-    id: 'graphic-1',
-    name: 'Objective north',
-    ownerId: 'apex',
-    shapeType: 'rectangle',
-    sideId: 'blue',
-    geometry: { type: 'Polygon', coordinates: [[[81.2, 26.2], [82.0, 26.2], [82.0, 25.6], [81.2, 25.6], [81.2, 26.2]]] },
-    properties: {
-      strokeColor: marks.objective,
-      fillColor: marks.objective,
-      strokeWidth: 2,
-      fillOpacity: 0.2,
-      sharedWith: [],
-      comments: [],
-      echelonId: 'company',
-      echelonBearingDeg: 0,
-      layer: 'objectives',
-      phase: 'plan',
-    },
-  },
-]
-
 const opacity = {}
-let past = []
-let future = []
-let alertMuted = false
-let recordings = []
-let draftRecording = null
-let capture = null
-let replay = null
-let announced = new Map()
-
-const scenario = {
-  name: 'Northern Approach',
-  description: 'Blue lead moves toward the holding area.',
-  durationSec: 60,
-  t: 0,
-  playing: false,
-  entities: [
-    {
-      id: 'track-1',
-      name: 'Blue lead',
-      color: swatchById('blue').color,
-      track: [
-        { t: 0, lon: 80.2, lat: 26.4 },
-        { t: 30, lon: 80.6, lat: 26.1 },
-        { t: 60, lon: 81.1, lat: 25.8 },
-      ],
-    },
-  ],
-}
-
-let simulation = { cadenceMs: 1000, mode: 'TIME', playback: false, seekSec: 0, durationSec: 7200 }
-let stream = { status: 'offline', enabled: false, wsUrl: 'ws://127.0.0.1:8080/ws', topic: '/topic/gis-warplan.positions' }
-let settings = {
+const settings = {
   source: 'wms',
-  geoserverUrl: mapService,
+  geoserverUrl: '',
   osmUrl: osmService,
-  wmsLayer: 'ne:countries',
+  wmsLayer: '',
   defaultZoom: 5,
   homeToken: 0,
   views: { picture: null, planning: null },
 }
 
-/** Applies backend map catalog defaults into the in-memory directory settings (never invents layers here). */
+/** Applies backend map catalog defaults into local map settings (never invents layers here). */
 export function applyMapCatalog(mapConfig) {
   if (!mapConfig) return
   if (mapConfig.server?.wmsUrl) {
@@ -171,17 +62,6 @@ export function applyMapCatalog(mapConfig) {
     }
   }
 }
-let planView = 'mine'
-let tick = 0
-let subscriber = null
-
-function clone(value) {
-  return structuredClone(value)
-}
-
-function nextId(prefix) {
-  return `${prefix}-${Math.random().toString(36).slice(2, 8)}`
-}
 
 function fail(event, fields, message, code) {
   logger.warn(event, { ...fields, code })
@@ -194,740 +74,147 @@ function requireUser(userId) {
   return access
 }
 
-function requireAdmin(userId) {
-  const access = requireUser(userId)
-  if (!access.admin) fail('directory.rejected', { userId, code: 'FORBIDDEN' }, 'This user cannot change the directory.', 'FORBIDDEN')
-  return access
-}
-
-function requireFlag(key) {
-  if (!flags[key]) fail('directory.rejected', { flag: key }, 'This capability is switched off.', 'SWITCHED_OFF')
-}
-
-function item(id, label, icon) {
-  return { id, label, icon }
-}
-
-function navigationFor(access) {
-  const map = [item('filters', 'Map filters', 'layers'), item('extent', 'Home extent', 'extent')]
-  if (flags.featureTable) map.push(item('features', 'Features', 'table'))
-  if (flags.propertiesPanel) map.push(item('properties', 'Properties', 'info'))
-  if (flags.drawingTools || flags.measurementTools) map.push(item('draw', 'Draw and measure', 'draw'))
-  if (flags.sideMapIcons) map.push(item('sides', 'Sides', 'sides'))
-  if (flags.mapSettings) map.push(item('map-settings', 'Map settings', 'settings'))
-
-  const groups = [{ id: 'map', label: 'Map', items: map }]
-  if (flags.planningCanvas) groups.push({ id: 'plan', label: 'Plan', items: [item('planning', 'Planning board', 'plan')] })
-
-  const game = [item('resources', 'Resources', 'resources'), item('plans', 'Plans', 'plans')]
-  if (access.canControlGame) game.push(item('exercise-control', 'Exercise control', 'control'))
-  if (flags.alertsPanel) game.push(item('alerts', 'Alerts', 'alerts'))
-  if (flags.sessionReplay) game.push(item('sessions', 'Sessions', 'sessions'))
-  if (flags.scenarioPlayback) game.push(item('scenario-play', 'Scenario playback', 'playback'))
-  if (access.canControlGame && flags.simulationExtras) game.push(item('simulation', 'Simulation', 'simulation'))
-  if (flags.liveStream) game.push(item('stream', 'Live stream', 'stream'))
-  groups.push({ id: 'game', label: 'Game', items: game })
-
-  if (access.admin) {
-    const admin = []
-    if (flags.zonesAdmin) admin.push(item('zones', 'Zones', 'zones'))
-    if (flags.routesAdmin) admin.push(item('routes', 'Routes', 'routes'))
-    if (flags.adminPanel && canOpenDirectory(access.functionalities)) admin.push(item('directory', 'Users and sides', 'directory'))
-    if (canOpenOrbat(access.functionalities)) admin.push(item('orbat', 'ORBAT', 'orbat'))
-    admin.push(item('flags', 'Features', 'flags'))
-    if (admin.length) groups.push({ id: 'admin', label: 'Administration', items: admin })
-  }
-  return groups
-}
-
-function ringContains(ring, lon, lat) {
-  let inside = false
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i]
-    const [xj, yj] = ring[j]
-    const crosses = yi > lat !== yj > lat && lon < ((xj - xi) * (lat - yi)) / (yj - yi || 1e-9) + xi
-    if (crosses) inside = !inside
-  }
-  return inside
-}
-
-function featurePoint(feature) {
-  if (feature.geometry?.type !== 'Point') return null
-  const [lon, lat] = feature.geometry.coordinates
-  return { lon, lat }
-}
-
-function computeAlerts() {
-  if (!flags.geofenceAlerts) return []
-  const zones = features.filter((feature) => feature.featureType === 'zone')
-  const alerts = []
-  for (const unit of features.filter((feature) => feature.featureType === 'unit')) {
-    const point = featurePoint(unit)
-    if (!point) continue
-    for (const zone of zones) {
-      const ring = zone.geometry?.coordinates?.[0]
-      if (!ring || !ringContains(ring, point.lon, point.lat)) continue
-      const id = `${unit.id}:${zone.id}`
-      alerts.push({
-        id,
-        name: unit.name,
-        side: sides.find((side) => side.id === unit.sideId)?.name || 'Unassigned',
-        zone: zone.name,
-        since: announced.get(id) || Date.now(),
-      })
-      if (!announced.has(id)) {
-        announced.set(id, Date.now())
-        logger.info('alert.raised', { unitId: unit.id, zoneId: zone.id })
-      }
-    }
-  }
-  for (const key of [...announced.keys()]) {
-    if (!alerts.some((alert) => alert.id === key)) announced.delete(key)
-  }
-  return alerts
-}
-
-function interp(track, t) {
-  if (!track.length) return { lon: 0, lat: 0 }
-  if (t <= track[0].t) return { lon: track[0].lon, lat: track[0].lat }
-  for (let index = 0; index < track.length - 1; index += 1) {
-    const left = track[index]
-    const right = track[index + 1]
-    if (t >= left.t && t <= right.t) {
-      const ratio = (t - left.t) / (right.t - left.t || 1)
-      return { lon: left.lon + (right.lon - left.lon) * ratio, lat: left.lat + (right.lat - left.lat) * ratio }
-    }
-  }
-  const last = track[track.length - 1]
-  return { lon: last.lon, lat: last.lat }
-}
-
-function positions() {
-  return features
-    .filter((feature) => feature.featureType === 'unit')
-    .map((feature) => {
-      const point = featurePoint(feature)
-      return { id: feature.id, name: feature.name, sideId: feature.sideId, lon: point?.lon ?? 0, lat: point?.lat ?? 0 }
-    })
-}
-
-function smooth(coordinates) {
-  if (coordinates.length < 3) return coordinates
-  const next = [coordinates[0]]
-  for (let index = 0; index < coordinates.length - 1; index += 1) {
-    const left = coordinates[index]
-    const right = coordinates[index + 1]
-    next.push([(left[0] * 2 + right[0]) / 3, (left[1] * 2 + right[1]) / 3], [(left[0] + right[0] * 2) / 3, (left[1] + right[1] * 2) / 3])
-  }
-  next.push(coordinates[coordinates.length - 1])
-  return next
-}
-
-function remember() {
-  past.push(clone(graphics))
-  if (past.length > 30) past.shift()
-  future = []
-}
-
 export function snapshot(userId) {
-  const access = accessFor(userId)
-  const replayFrame = replay ? recordings.find((item) => item.id === replay.id)?.frames[replay.index] : null
-  const remote = getRemote()
-  const base = {
-    navigation: access ? navigationFor(access) : [],
-    opacity: { ...opacity },
-    features: clone(features),
-    sides: sides.map((side) => ({
-      id: side.id,
-      name: side.name,
-      icon: side.icon,
-      swatchId: side.swatchId,
-      themeId: side.themeId,
-      color: swatchById(side.swatchId)?.color || '',
-    })),
-    swatches: swatches.map((item) => ({
-      id: item.id,
-      name: item.name,
-      color: item.color,
-      takenBy: sides.find((side) => side.swatchId === item.id)?.id || null,
-    })),
-    themeChoices: palettes.map((item) => ({
-      id: item.id,
-      name: item.name,
-      takenBy: sides.find((side) => side.themeId === item.id)?.id || null,
-    })),
-    marks: { halo: marks.halo, outline: marks.outline, objective: marks.objective, replay: marks.replay },
-    roles: clone(roles),
-    users: listDirectoryUsers(),
-    graphics: clone(graphics),
-    planView,
-    canUndo: past.length > 0,
-    canRedo: future.length > 0,
-    alerts: computeAlerts(),
-    alertMuted,
-    alertSound: flags.alertSound,
-    recordings: recordings.map(({ id, name, durationSec, frames }) => ({ id, name, durationSec, frameCount: frames.length })),
-    draftRecording: draftRecording ? { durationSec: draftRecording.durationSec, frameCount: draftRecording.frames.length } : null,
-    capture: Boolean(capture),
-    replay: replay
-      ? {
-          id: replay.id,
-          name: replay.name,
-          index: replay.index,
-          count: replay.count,
-          playing: replay.playing,
-          positions: replayFrame?.positions || [],
-        }
-      : null,
-    scenario: {
-      name: scenario.name,
-      description: scenario.description,
-      durationSec: scenario.durationSec,
-      t: scenario.t,
-      playing: scenario.playing,
-      markers: scenario.entities.map((entity) => ({ id: entity.id, name: entity.name, color: entity.color, ...interp(entity.track, scenario.t) })),
-    },
-    simulation: { ...simulation },
-    stream: { ...stream },
-    flags: { ...flags },
-    flagList: FLAG_LIST.map((item) => ({ ...item, enabled: flags[item.key] })),
-    settings: clone(settings),
-    markers: positions(),
-    showSides: flags.sideMapIcons,
+  requireUser(userId)
+  const remote = getRemote() || {
+    users: [],
+    sides: [],
+    roles: [],
+    swatches: [],
+    themeChoices: [],
+    functionalityCatalog: [],
+    directoryThemes: [],
+    access: [],
+    mapConfig: null,
   }
-
-  if (!remote) return base
-  // Users, sides, roles, themes and swatches come from the backend once it has been read.
   return {
-    ...base,
-    users: remote.users,
+    navigation: [],
+    opacity: { ...opacity },
+    features: [],
     sides: remote.sides,
-    roles: remote.roles,
     swatches: remote.swatches,
     themeChoices: remote.themeChoices,
+    marks: { halo: marks.halo, outline: marks.outline, objective: marks.objective, replay: marks.replay },
+    roles: remote.roles,
+    users: remote.users,
+    graphics: [],
+    planView: 'mine',
+    canUndo: false,
+    canRedo: false,
+    alerts: [],
+    alertMuted: true,
+    alertSound: false,
+    recordings: [],
+    draftRecording: null,
+    capture: false,
+    replay: null,
+    scenario: { name: '', description: '', durationSec: 0, t: 0, playing: false, markers: [] },
+    simulation: { speed: 1, playing: false },
+    stream: { status: 'offline', enabled: false, wsUrl: '', topic: '' },
+    flags: {
+      layerOpacity: true,
+      featureTable: false,
+      propertiesPanel: false,
+      drawingTools: false,
+      measurementTools: false,
+      sideMapIcons: false,
+      mapSettings: true,
+      planningCanvas: false,
+      planningExport: false,
+      planningShare: false,
+      planningReview: false,
+      planningPromote: false,
+      geofenceAlerts: false,
+      alertSound: false,
+      alertsPanel: false,
+      sessionReplay: false,
+      scenarioPlayback: false,
+      simulationExtras: false,
+      liveStream: false,
+      statusBadge: false,
+      zonesAdmin: false,
+      routesAdmin: false,
+      adminPanel: canOpenDirectory(remote.access),
+      demoMode: false,
+    },
+    flagList: [],
+    settings: structuredClone(settings),
+    markers: [],
+    showSides: false,
     functionalityCatalog: remote.functionalityCatalog,
     directoryThemes: remote.directoryThemes,
     grants: remote.access,
+    mapConfig: remote.mapConfig,
+    canOpenOrbat: canOpenOrbat(remote.access),
   }
 }
+
+registerSnapshot(snapshot)
 
 export function subscribeWorkbench(userId, onChange) {
-  if (subscriber) clearInterval(subscriber)
-  subscriber = setInterval(() => {
-    try {
-      onChange(advance(userId))
-    } catch (error) {
-      logger.error('workbench.tick_failed', { message: error?.message || 'tick failed' })
-    }
-  }, 500)
-  return () => {
-    if (subscriber) clearInterval(subscriber)
-    subscriber = null
-  }
-}
-
-function advance(userId) {
-  tick += 1
-  if (stream.status === 'live' && tick % 2 === 0) stepUnits()
-  if (scenario.playing) {
-    scenario.t = Math.min(scenario.durationSec, Math.round((scenario.t + 0.5) * 10) / 10)
-    if (scenario.t >= scenario.durationSec) scenario.playing = false
-  }
-  if (capture && tick % 2 === 0) {
-    capture.frames.push({ t: capture.frames.length, positions: positions() })
-    capture.durationSec = capture.frames.length
-  }
-  if (replay?.playing && tick % 2 === 0) {
-    replay.index = Math.min(replay.count - 1, replay.index + 1)
-    if (replay.index >= replay.count - 1) replay.playing = false
-  }
-  return snapshot(userId)
-}
-
-function stepUnits() {
-  for (const feature of features) {
-    if (feature.featureType !== 'unit') continue
-    const [lon, lat] = feature.geometry.coordinates
-    feature.geometry = { type: 'Point', coordinates: [Math.round((lon + 0.04) * 1000) / 1000, lat] }
-  }
-}
-
-function requireName(name, event) {
-  if (!name || !String(name).trim()) fail(event, {}, 'Enter a name.', 'VALIDATION')
-  return String(name).trim()
+  requireUser(userId)
+  onChange(snapshot(userId))
+  return () => {}
 }
 
 export function setLayerOpacity(userId, layerId, value) {
   requireUser(userId)
-  requireFlag('layerOpacity')
-  const opacityValue = Number(value)
-  if (!layerId || Number.isNaN(opacityValue) || opacityValue < 0 || opacityValue > 1) {
-    fail('layer.opacity_rejected', { userId, layerId }, 'Opacity must be between 0 and 1.', 'VALIDATION')
-  }
-  opacity[layerId] = opacityValue
+  const next = Math.min(1, Math.max(0.15, Number(value) || 1))
+  opacity[layerId] = next
+  logger.info('map.opacity', { userId, layerId, opacity: next })
   return snapshot(userId)
 }
 
 export function saveMapView(userId, surface, view) {
   requireUser(userId)
-  requireFlag('mapSettings')
-  if (surface !== 'picture' && surface !== 'planning') fail('map.view_rejected', { userId, surface }, 'Choose the picture or the planning board.', 'VALIDATION')
-  if (!view || Number.isNaN(Number(view.longitude)) || Number.isNaN(Number(view.latitude)) || Number.isNaN(Number(view.zoom))) {
-    fail('map.view_rejected', { userId, surface }, 'The map view is incomplete.', 'VALIDATION')
-  }
-  settings.views[surface] = { longitude: Number(view.longitude), latitude: Number(view.latitude), zoom: Number(view.zoom) }
+  settings.views[surface] = view
   return snapshot(userId)
 }
 
 export function resetMapViews(userId) {
   requireUser(userId)
-  requireFlag('mapSettings')
   settings.views = { picture: null, planning: null }
   settings.homeToken += 1
-  logger.info('map.views_reset', { userId })
   return snapshot(userId)
 }
 
-export function updateBasemap(userId, patch) {
-  requireUser(userId)
-  requireFlag('mapSettings')
-  const source = patch?.source
-  if (source !== 'osm' && source !== 'wms') fail('map.basemap_rejected', { userId }, 'Choose OpenStreetMap or GeoServer.', 'VALIDATION')
-  if (source === 'wms' && (!String(patch.geoserverUrl || '').trim() || !String(patch.wmsLayer || '').trim())) {
-    fail('map.basemap_rejected', { userId }, 'Enter the GeoServer address and the layer name.', 'VALIDATION')
-  }
-  const zoom = Number(patch.defaultZoom)
-  if (!Number.isFinite(zoom) || zoom < 1 || zoom > 18) {
-    fail('map.basemap_rejected', { userId }, 'Default zoom must be between 1 and 18.', 'VALIDATION')
-  }
-  settings = {
-    ...settings,
-    source,
-    geoserverUrl: String(patch.geoserverUrl || settings.geoserverUrl).trim(),
-    wmsLayer: String(patch.wmsLayer || settings.wmsLayer).trim(),
-    defaultZoom: zoom,
-  }
-  logger.info('map.basemap_changed', { userId, source })
-  return snapshot(userId)
+function unavailable(userId, action) {
+  fail('directory.unavailable', { userId, action }, 'This capability is not available in the product.', 'UNAVAILABLE')
 }
 
-export function createFeature(userId, draft) {
-  const access = requireUser(userId)
-  requireFlag('drawingTools')
-  const name = requireName(draft?.name, 'feature.rejected')
-  const featureType = draft?.featureType
-  if (!['unit', 'route', 'zone'].includes(featureType)) fail('feature.rejected', { userId }, 'Choose a unit, a route, or a zone.', 'VALIDATION')
-  if (!draft?.geometry?.type) fail('feature.rejected', { userId }, 'The drawing is incomplete.', 'VALIDATION')
-  if (draft.sideId && !sides.some((side) => side.id === draft.sideId)) fail('feature.rejected', { userId }, 'That side is not in the exercise.', 'NOT_FOUND')
-  let geometry = clone(draft.geometry)
-  if (featureType === 'route' && draft.curved && geometry.type === 'LineString') geometry = { ...geometry, coordinates: smooth(geometry.coordinates) }
-  const feature = {
-    id: nextId(featureType),
-    name,
-    featureType,
-    layerId: featureType === 'unit' ? 'units' : `${featureType}s`,
-    sideId: draft.sideId || '',
-    geometry,
-    properties: { curved: Boolean(draft.curved) },
-  }
-  features = [...features, feature]
-  logger.info('feature.created', { userId: access.userId, featureId: feature.id, featureType })
-  return snapshot(userId)
-}
-
-export function updateFeature(userId, featureId, patch) {
-  requireUser(userId)
-  const feature = features.find((item) => item.id === featureId)
-  if (!feature) fail('feature.rejected', { userId, featureId }, 'That feature is no longer on the picture.', 'NOT_FOUND')
-  if (patch.geometry) feature.geometry = clone(patch.geometry)
-  if (patch.name != null) feature.name = requireName(patch.name, 'feature.rejected')
-  if (patch.sideId != null) {
-    if (patch.sideId && !sides.some((side) => side.id === patch.sideId)) fail('feature.rejected', { userId }, 'That side is not in the exercise.', 'NOT_FOUND')
-    feature.sideId = patch.sideId
-  }
-  return snapshot(userId)
-}
-
-export function extendFeature(userId, featureId, edge) {
-  requireUser(userId)
-  requireFlag('drawingTools')
-  const feature = features.find((item) => item.id === featureId)
-  if (!feature || feature.geometry?.type !== 'LineString') fail('feature.rejected', { userId, featureId }, 'Select a route before extending it.', 'VALIDATION')
-  if (edge !== 'start' && edge !== 'end') fail('feature.rejected', { userId, featureId }, 'Extend the start or the end of the route.', 'VALIDATION')
-  const coordinates = feature.geometry.coordinates.map((pair) => [...pair])
-  const index = edge === 'start' ? 0 : coordinates.length - 1
-  const [lon, lat] = coordinates[index]
-  const point = [Math.round((lon + (edge === 'start' ? -0.05 : 0.05)) * 1000) / 1000, lat]
-  if (edge === 'start') coordinates.unshift(point)
-  else coordinates.push(point)
-  feature.geometry = { type: 'LineString', coordinates }
-  logger.info('feature.extended', { userId, featureId, edge })
-  return snapshot(userId)
-}
-
-export function deleteFeature(userId, featureId) {
-  requireUser(userId)
-  if (!features.some((item) => item.id === featureId)) fail('feature.rejected', { userId, featureId }, 'That feature is no longer on the picture.', 'NOT_FOUND')
-  features = features.filter((item) => item.id !== featureId)
-  logger.info('feature.deleted', { userId, featureId })
-  return snapshot(userId)
-}
-
-export function createGraphic(userId, draft) {
-  requireUser(userId)
-  requireFlag('planningCanvas')
-  const name = requireName(draft?.name, 'planning.rejected')
-  const shapeType = draft?.shapeType
-  const allowed = ['rectangle', 'circle', 'ellipse', 'polygon', 'line', 'arrow', 'freehand', 'point', 'stamp', 'symbol']
-  if (!allowed.includes(shapeType)) fail('planning.rejected', { userId }, 'Choose a planning shape.', 'VALIDATION')
-  if (!draft?.geometry?.type) fail('planning.rejected', { userId }, 'The drawing is incomplete.', 'VALIDATION')
-  remember()
-  graphics = [
-    ...graphics,
-    {
-      id: nextId('graphic'),
-      name,
-      ownerId: userId,
-      shapeType,
-      sideId: draft.sideId || '',
-      geometry: clone(draft.geometry),
-      properties: {
-        strokeColor: marks.objective,
-        fillColor: marks.objective,
-        strokeWidth: 2,
-        fillOpacity: 0.25,
-        sharedWith: [],
-        comments: [],
-        stampId: draft.stampId || '',
-        symbolId: draft.symbolId || '',
-        echelonId: '',
-        echelonBearingDeg: 0,
-        echelonSizePct: 18,
-        shapeRotationDeg: 0,
-        layer: '',
-        phase: '',
-      },
-    },
-  ]
-  logger.info('planning.created', { userId, shapeType })
-  return snapshot(userId)
-}
-
-export function updateGraphic(userId, graphicId, patch) {
-  requireUser(userId)
-  const graphic = graphics.find((item) => item.id === graphicId)
-  if (!graphic) fail('planning.rejected', { userId, graphicId }, 'That graphic is no longer on the board.', 'NOT_FOUND')
-  if (graphic.ownerId !== userId) fail('planning.rejected', { userId, graphicId }, 'A shared graphic is read only.', 'FORBIDDEN')
-  remember()
-  if (patch.geometry) graphic.geometry = clone(patch.geometry)
-  if (patch.name != null) graphic.name = requireName(patch.name, 'planning.rejected')
-  if (patch.sideId != null) graphic.sideId = patch.sideId
-  if (patch.properties) graphic.properties = { ...graphic.properties, ...patch.properties, comments: graphic.properties.comments, sharedWith: graphic.properties.sharedWith }
-  return snapshot(userId)
-}
-
-export function deleteGraphic(userId, graphicId) {
-  requireUser(userId)
-  const graphic = graphics.find((item) => item.id === graphicId)
-  if (!graphic) fail('planning.rejected', { userId, graphicId }, 'That graphic is no longer on the board.', 'NOT_FOUND')
-  if (graphic.ownerId !== userId) fail('planning.rejected', { userId, graphicId }, 'A shared graphic is read only.', 'FORBIDDEN')
-  remember()
-  graphics = graphics.filter((item) => item.id !== graphicId)
-  logger.info('planning.deleted', { userId, graphicId })
-  return snapshot(userId)
-}
-
-export function undoPlanning(userId) {
-  requireUser(userId)
-  if (!past.length) fail('planning.rejected', { userId }, 'Nothing to undo.', 'EMPTY')
-  future.push(clone(graphics))
-  graphics = past.pop()
-  logger.info('planning.undo', { userId })
-  return snapshot(userId)
-}
-
-export function redoPlanning(userId) {
-  requireUser(userId)
-  if (!future.length) fail('planning.rejected', { userId }, 'Nothing to redo.', 'EMPTY')
-  past.push(clone(graphics))
-  graphics = future.pop()
-  logger.info('planning.redo', { userId })
-  return snapshot(userId)
-}
-
-export function exportPlan(userId) {
-  requireUser(userId)
-  requireFlag('planningExport')
-  const mine = graphics.filter((graphic) => graphic.ownerId === userId || graphic.properties.sharedWith?.includes(userId))
-  logger.info('planning.exported', { userId, count: mine.length })
-  return {
-    type: 'FeatureCollection',
-    features: mine.map((graphic) => ({
-      type: 'Feature',
-      id: graphic.id,
-      geometry: graphic.geometry,
-      properties: { name: graphic.name, shapeType: graphic.shapeType, sideId: graphic.sideId },
-    })),
-  }
-}
-
-export function setPlanView(userId, view) {
-  requireUser(userId)
-  if (view !== 'mine' && view !== 'shared') fail('planning.rejected', { userId }, 'Choose your plan or a plan shared with you.', 'VALIDATION')
-  requireFlag('planningShare')
-  planView = view
-  return snapshot(userId)
-}
-
-export function shareGraphic(userId, graphicId, userIds) {
-  requireUser(userId)
-  requireFlag('planningShare')
-  const graphic = graphics.find((item) => item.id === graphicId)
-  if (!graphic) fail('planning.rejected', { userId, graphicId }, 'That graphic is no longer on the board.', 'NOT_FOUND')
-  if (graphic.ownerId !== userId) fail('planning.rejected', { userId, graphicId }, 'Only the owner can share this graphic.', 'FORBIDDEN')
-  const ids = [...new Set((userIds || []).filter(Boolean))]
-  const known = new Set(listDirectoryUsers().map((user) => user.id))
-  const unknown = ids.find((id) => !known.has(id) || id === userId)
-  if (unknown) fail('planning.rejected', { userId, graphicId }, 'Share with a known user other than yourself.', 'NOT_FOUND')
-  remember()
-  graphic.properties.sharedWith = ids
-  logger.info('planning.shared', { userId, graphicId, count: ids.length })
-  return snapshot(userId)
-}
-
-export function addComment(userId, graphicId, text) {
-  requireUser(userId)
-  requireFlag('planningReview')
-  const graphic = graphics.find((item) => item.id === graphicId)
-  if (!graphic) fail('planning.rejected', { userId, graphicId }, 'That graphic is no longer on the board.', 'NOT_FOUND')
-  const body = String(text || '').trim()
-  if (!body) fail('planning.rejected', { userId, graphicId }, 'Enter a comment.', 'VALIDATION')
-  graphic.properties.comments = [...(graphic.properties.comments || []), { id: nextId('comment'), userId, text: body, at: new Date().toISOString() }]
-  logger.info('planning.commented', { userId, graphicId })
-  return snapshot(userId)
-}
-
-const AREAS = new Set(['polygon', 'rectangle', 'ellipse', 'circle', 'freehand'])
-
-export function promoteGraphic(userId, graphicId) {
-  requireUser(userId)
-  requireFlag('planningPromote')
-  const graphic = graphics.find((item) => item.id === graphicId)
-  if (!graphic) fail('planning.rejected', { userId, graphicId }, 'That graphic is no longer on the board.', 'NOT_FOUND')
-  if (graphic.ownerId !== userId) fail('planning.rejected', { userId, graphicId }, 'Only the owner can promote this graphic.', 'FORBIDDEN')
-  if (!AREAS.has(graphic.shapeType) || graphic.geometry?.type !== 'Polygon') {
-    fail('planning.rejected', { userId, graphicId }, 'Only an area can become a zone.', 'VALIDATION')
-  }
-  features = [
-    ...features,
-    {
-      id: nextId('zone'),
-      name: graphic.name,
-      featureType: 'zone',
-      layerId: 'zones',
-      sideId: graphic.sideId,
-      geometry: clone(graphic.geometry),
-      properties: { promotedFrom: graphic.id },
-    },
-  ]
-  logger.info('planning.promoted', { userId, graphicId })
-  return snapshot(userId)
-}
-
-export function setAlertMuted(userId, muted) {
-  requireUser(userId)
-  alertMuted = Boolean(muted)
-  return snapshot(userId)
-}
-
-export function startRecording(userId) {
-  requireUser(userId)
-  requireFlag('sessionReplay')
-  if (capture) fail('session.rejected', { userId }, 'A recording is already in progress.', 'CONFLICT')
-  capture = { started: Date.now(), frames: [{ t: 0, positions: positions() }], durationSec: 0 }
-  logger.info('session.recording_started', { userId })
-  return snapshot(userId)
-}
-
-export function stopRecording(userId) {
-  requireUser(userId)
-  if (!capture) fail('session.rejected', { userId }, 'There is no recording to stop.', 'EMPTY')
-  draftRecording = { durationSec: Math.max(1, capture.frames.length), frames: capture.frames }
-  capture = null
-  return snapshot(userId)
-}
-
-export function saveRecording(userId, name) {
-  requireUser(userId)
-  if (!draftRecording) fail('session.rejected', { userId }, 'There is no recording to save.', 'EMPTY')
-  const title = requireName(name, 'session.rejected')
-  recordings = [...recordings, { id: nextId('session'), name: title, durationSec: draftRecording.durationSec, frames: draftRecording.frames }]
-  draftRecording = null
-  logger.info('session.saved', { userId, name: title })
-  return snapshot(userId)
-}
-
-export function discardRecording(userId) {
-  requireUser(userId)
-  draftRecording = null
-  return snapshot(userId)
-}
-
-export function deleteRecording(userId, recordingId) {
-  requireUser(userId)
-  if (!recordings.some((item) => item.id === recordingId)) fail('session.rejected', { userId, recordingId }, 'That session is no longer saved.', 'NOT_FOUND')
-  recordings = recordings.filter((item) => item.id !== recordingId)
-  if (replay?.id === recordingId) replay = null
-  logger.info('session.deleted', { userId, recordingId })
-  return snapshot(userId)
-}
-
-export function loadReplay(userId, recordingId) {
-  requireUser(userId)
-  requireFlag('sessionReplay')
-  const recording = recordings.find((item) => item.id === recordingId)
-  if (!recording) fail('session.rejected', { userId, recordingId }, 'That session is no longer saved.', 'NOT_FOUND')
-  if (!recording.frames.length) fail('session.rejected', { userId, recordingId }, 'That session has no frames.', 'EMPTY')
-  replay = { id: recording.id, name: recording.name, index: 0, count: recording.frames.length, playing: false }
-  stream = { ...stream, status: 'replay' }
-  return snapshot(userId)
-}
-
-export function seekReplay(userId, index) {
-  requireUser(userId)
-  if (!replay) fail('session.rejected', { userId }, 'Load a session before moving through it.', 'EMPTY')
-  const next = Math.max(0, Math.min(replay.count - 1, Number(index) || 0))
-  replay = { ...replay, index: next, playing: false }
-  return snapshot(userId)
-}
-
-export function setReplayPlaying(userId, playing) {
-  requireUser(userId)
-  if (!replay) fail('session.rejected', { userId }, 'Load a session before playing it.', 'EMPTY')
-  replay = { ...replay, playing: Boolean(playing) }
-  return snapshot(userId)
-}
-
-export function stepReplay(userId, delta) {
-  requireUser(userId)
-  if (!replay) fail('session.rejected', { userId }, 'Load a session before stepping through it.', 'EMPTY')
-  return seekReplay(userId, replay.index + Number(delta || 0))
-}
-
-export function closeReplay(userId) {
-  requireUser(userId)
-  replay = null
-  if (stream.status === 'replay') stream = { ...stream, status: stream.enabled ? 'live' : 'offline' }
-  return snapshot(userId)
-}
-
-export function seekScenario(userId, t) {
-  requireUser(userId)
-  requireFlag('scenarioPlayback')
-  const next = Math.max(0, Math.min(scenario.durationSec, Number(t) || 0))
-  scenario.t = next
-  if (next >= scenario.durationSec) scenario.playing = false
-  return snapshot(userId)
-}
-
-export function setScenarioPlaying(userId, playing) {
-  requireUser(userId)
-  requireFlag('scenarioPlayback')
-  if (playing && scenario.t >= scenario.durationSec) scenario.t = 0
-  scenario.playing = Boolean(playing)
-  return snapshot(userId)
-}
-
-export function setSimulation(userId, patch) {
-  const access = requireUser(userId)
-  requireFlag('simulationExtras')
-  if (!access.canControlGame) fail('simulation.rejected', { userId }, 'This user cannot change the simulation.', 'FORBIDDEN')
-  const cadence = Number(patch.cadenceMs)
-  if (patch.cadenceMs != null && (!Number.isFinite(cadence) || cadence < 100 || cadence > 300000)) {
-    fail('simulation.rejected', { userId }, 'Choose a frame duration between 100 ms and 5 min.', 'VALIDATION')
-  }
-  if (patch.mode != null && patch.mode !== 'TIME' && patch.mode !== 'EVENT') {
-    fail('simulation.rejected', { userId }, 'Choose time mode or event mode.', 'VALIDATION')
-  }
-  const seekSec = patch.seekSec == null ? simulation.seekSec : Math.max(0, Math.min(simulation.durationSec, Number(patch.seekSec) || 0))
-  simulation = {
-    ...simulation,
-    cadenceMs: patch.cadenceMs == null ? simulation.cadenceMs : cadence,
-    mode: patch.mode || simulation.mode,
-    playback: patch.playback == null ? simulation.playback : Boolean(patch.playback),
-    seekSec,
-  }
-  logger.info('simulation.changed', { userId, mode: simulation.mode, playback: simulation.playback })
-  return snapshot(userId)
-}
-
-export function connectStream(userId) {
-  requireUser(userId)
-  requireFlag('liveStream')
-  if (!stream.wsUrl.trim() || !stream.topic.trim()) fail('stream.rejected', { userId }, 'The stream address is incomplete.', 'VALIDATION')
-  stream = { ...stream, enabled: true, status: 'live' }
-  logger.info('stream.connected', { userId })
-  return snapshot(userId)
-}
-
-export function disconnectStream(userId) {
-  requireUser(userId)
-  stream = { ...stream, enabled: false, status: replay ? 'replay' : 'offline' }
-  logger.info('stream.disconnected', { userId })
-  return snapshot(userId)
-}
-
-export function updateStream(userId, patch) {
-  requireUser(userId)
-  requireFlag('liveStream')
-  const wsUrl = String(patch.wsUrl || '').trim()
-  const topic = String(patch.topic || '').trim()
-  if (!wsUrl.startsWith('ws')) fail('stream.rejected', { userId }, 'The stream address must start with ws.', 'VALIDATION')
-  if (!topic.startsWith('/')) fail('stream.rejected', { userId }, 'The topic must start with /.', 'VALIDATION')
-  stream = { ...stream, wsUrl, topic }
-  return snapshot(userId)
-}
-
-export function saveZone(userId, draft) {
-  requireAdmin(userId)
-  requireFlag('zonesAdmin')
-  return saveCatalogue(userId, 'zone', draft)
-}
-
-export function saveRoute(userId, draft) {
-  requireAdmin(userId)
-  requireFlag('routesAdmin')
-  return saveCatalogue(userId, 'route', draft)
-}
-
-function saveCatalogue(userId, featureType, draft) {
-  const name = requireName(draft?.name, 'catalogue.rejected')
-  if (draft?.sideId && !sides.some((side) => side.id === draft.sideId)) fail('catalogue.rejected', { userId }, 'That side is not in the exercise.', 'NOT_FOUND')
-  if (draft?.id) {
-    const feature = features.find((item) => item.id === draft.id && item.featureType === featureType)
-    if (!feature) fail('catalogue.rejected', { userId, featureId: draft.id }, 'That record is no longer in the catalogue.', 'NOT_FOUND')
-    feature.name = name
-    feature.sideId = draft.sideId || ''
-  } else if (featureType === 'zone') {
-    fail('catalogue.rejected', { userId }, 'Draw a zone on the picture before adding it here.', 'VALIDATION')
-  } else {
-    fail('catalogue.rejected', { userId }, 'Draw a route on the picture before adding it here.', 'VALIDATION')
-  }
-  logger.info('catalogue.saved', { userId, featureType, id: draft.id })
-  return snapshot(userId)
-}
-
-export function deleteCatalogue(userId, featureId) {
-  requireAdmin(userId)
-  return deleteFeature(userId, featureId)
-}
-
-export function setFlag(userId, key, enabled) {
-  requireAdmin(userId)
-  if (!FLAG_LIST.some((item) => item.key === key)) fail('flag.rejected', { userId, key }, 'That feature is not in the catalogue.', 'NOT_FOUND')
-  flags[key] = Boolean(enabled)
-  logger.info('flag.changed', { userId, key, enabled: flags[key] })
-  return snapshot(userId)
-}
-
-registerSnapshot(snapshot)
+export const updateBasemap = (userId) => unavailable(userId, 'updateBasemap')
+export const createFeature = (userId) => unavailable(userId, 'createFeature')
+export const updateFeature = (userId) => unavailable(userId, 'updateFeature')
+export const extendFeature = (userId) => unavailable(userId, 'extendFeature')
+export const deleteFeature = (userId) => unavailable(userId, 'deleteFeature')
+export const createGraphic = (userId) => unavailable(userId, 'createGraphic')
+export const updateGraphic = (userId) => unavailable(userId, 'updateGraphic')
+export const deleteGraphic = (userId) => unavailable(userId, 'deleteGraphic')
+export const undoPlanning = (userId) => unavailable(userId, 'undoPlanning')
+export const redoPlanning = (userId) => unavailable(userId, 'redoPlanning')
+export const exportPlan = (userId) => unavailable(userId, 'exportPlan')
+export const setPlanView = (userId) => unavailable(userId, 'setPlanView')
+export const shareGraphic = (userId) => unavailable(userId, 'shareGraphic')
+export const addComment = (userId) => unavailable(userId, 'addComment')
+export const promoteGraphic = (userId) => unavailable(userId, 'promoteGraphic')
+export const setAlertMuted = (userId) => unavailable(userId, 'setAlertMuted')
+export const startRecording = (userId) => unavailable(userId, 'startRecording')
+export const stopRecording = (userId) => unavailable(userId, 'stopRecording')
+export const saveRecording = (userId) => unavailable(userId, 'saveRecording')
+export const discardRecording = (userId) => unavailable(userId, 'discardRecording')
+export const deleteRecording = (userId) => unavailable(userId, 'deleteRecording')
+export const loadReplay = (userId) => unavailable(userId, 'loadReplay')
+export const seekReplay = (userId) => unavailable(userId, 'seekReplay')
+export const setReplayPlaying = (userId) => unavailable(userId, 'setReplayPlaying')
+export const stepReplay = (userId) => unavailable(userId, 'stepReplay')
+export const closeReplay = (userId) => unavailable(userId, 'closeReplay')
+export const seekScenario = (userId) => unavailable(userId, 'seekScenario')
+export const setScenarioPlaying = (userId) => unavailable(userId, 'setScenarioPlaying')
+export const setSimulation = (userId) => unavailable(userId, 'setSimulation')
+export const connectStream = (userId) => unavailable(userId, 'connectStream')
+export const disconnectStream = (userId) => unavailable(userId, 'disconnectStream')
+export const updateStream = (userId) => unavailable(userId, 'updateStream')
+export const saveZone = (userId) => unavailable(userId, 'saveZone')
+export const saveRoute = (userId) => unavailable(userId, 'saveRoute')
+export const deleteCatalogue = (userId) => unavailable(userId, 'deleteCatalogue')
+export const setFlag = (userId) => unavailable(userId, 'setFlag')

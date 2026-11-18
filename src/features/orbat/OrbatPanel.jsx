@@ -344,7 +344,12 @@ export default function OrbatPanel() {
       push(metadata?.status === 'finalized' ? 'ORBAT finalized.' : 'ORBAT saved.', 'success')
       return saved
     } catch (error) {
-      setSaveError(error?.message || 'The ORBAT could not be saved.')
+      const conflict = error?.code === 'CONFLICT' || /version|conflict/i.test(error?.message || '')
+      const message = conflict
+        ? (error?.message || 'Another user saved this ORBAT. Reload and try again.')
+        : (error?.message || 'The ORBAT could not be saved.')
+      setSaveError(message)
+      push(message, 'error')
       return null
     } finally {
       setSaving(false)

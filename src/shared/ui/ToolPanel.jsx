@@ -4,25 +4,13 @@ import { PanelBody } from './workbench/Panels'
 
 const TITLES = {
   filters: 'Map filters',
-  resources: 'Resources',
-  plans: 'Plans',
-  'exercise-control': 'Exercise control',
-  features: 'Features',
-  properties: 'Properties',
-  draw: 'Draw and measure',
-  sides: 'Sides',
-  'map-settings': 'Map settings',
-  planning: 'Planning board',
-  alerts: 'Alerts',
-  sessions: 'Sessions',
-  'scenario-play': 'Scenario playback',
-  simulation: 'Simulation',
-  stream: 'Live stream',
-  zones: 'Zones',
-  routes: 'Routes',
   directory: 'Users and sides',
   orbat: 'ORBAT',
-  flags: 'Features',
+  'map-admin': 'Map catalog',
+  'scenario-admin': 'Scenario management',
+  'game-admin': 'Game',
+  audit: 'Audit',
+  icons: 'Icons',
 }
 
 export function ToolPanel({ panel, onClose }) {

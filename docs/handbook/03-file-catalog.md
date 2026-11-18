@@ -50,7 +50,7 @@ Every file under `src/` that the app loads. Paths are from the project root. “
 | --- | --- |
 | `src/shared/api/client.js` | The only module UI code imports for data. Login, session, scenario, game, and a re-export of the directory. |
 | `src/shared/api/directory.js` | Picture, plan, alerts, recordings, simulation, stream, catalogues, users, flags, password, map settings. |
-| `src/shared/api/fixtures.js` | Seed users, grants, themes, scenarios, games, filters, resources, plans. Password map. |
+| `src/shared/api/fixtures.js` | Residual map defaults (clock start, planned centers). Login and directory data come from the backend. |
 | `src/shared/api/errors.js` | `ApiError` with `message` and `code`. Re-exported from `client.js`. |
 
 ## Directory store

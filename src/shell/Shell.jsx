@@ -1,12 +1,11 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { Box } from '@mui/material'
+import { Box, Button } from '@mui/material'
 import LoginPage from '../features/login/LoginPage'
 import { useChrome } from '../features/session/useChrome'
 import { useSessionStore } from '../features/session/useSessionStore'
 import { ApplicationMenu } from '../shared/ui/ApplicationMenu'
 import { MapToolbar, ShowMapTools } from '../shared/ui/MapToolbar'
-import { MapGrid } from '../shared/ui/MapGrid'
 import { MapStage } from '../shared/ui/MapStage'
 import { StatusFooter } from '../shared/ui/StatusFooter'
 import { ToolDock } from '../shared/ui/ToolDock'
@@ -14,26 +13,32 @@ import { ContextStrip, TopBar } from '../shared/ui/TopBar'
 
 function Frame() {
   const { panel, closePanel, select } = useChrome()
-  const [toolsOpen, setToolsOpen] = useState(true)
-  const [viewMode, setViewMode] = useState('default')
+  const [bandOpen, setBandOpen] = useState(true)
+  const [toolsOpen, setToolsOpen] = useState(false)
   const [readout, setReadout] = useState(null)
 
   return (
     <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', bgcolor: 'background.default', color: 'text.primary' }}>
       <TopBar
-        viewMode={viewMode}
-        onViewMode={setViewMode}
         leading={
           <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-            <ApplicationMenu presentation="menu" />
+            <Button
+              size="small"
+              aria-pressed={bandOpen}
+              onClick={() => setBandOpen((open) => !open)}
+              sx={{ textTransform: 'none', color: bandOpen ? 'primary.main' : 'text.primary', flexShrink: 0 }}
+            >
+              Application
+            </Button>
             <ShowMapTools pressed={toolsOpen} onClick={() => setToolsOpen((open) => !open)} />
           </Box>
         }
       />
       <ContextStrip />
+      {bandOpen ? <ApplicationMenu presentation="bar" onHide={() => setBandOpen(false)} /> : null}
       {toolsOpen ? <MapToolbar activeId={panel} onSelect={select} /> : null}
       <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
-        {viewMode === 'grid' ? <MapGrid onReadout={setReadout} /> : <MapStage readout="none" onReadout={setReadout} />}
+        <MapStage readout="none" onReadout={setReadout} />
         <ToolDock panel={panel} onClose={closePanel} edge="end" />
       </Box>
       <StatusFooter readout={readout} />

@@ -12,6 +12,7 @@ export function canOpenDirectory(functionalities) {
     FunctionalityCodes.MANAGE_SIDES,
     FunctionalityCodes.MANAGE_ROLES,
     FunctionalityCodes.MANAGE_THEMES,
+    FunctionalityCodes.MANAGE_NODE_TYPES,
   )
 }
 
@@ -34,17 +35,22 @@ function item(id, label, icon) {
   return { id, label, icon }
 }
 
-/** Session-level navigation (the workbench snapshot may refine it). */
+/** Session-level navigation: only backend-supported tools. */
 export function navigationForFunctionalities(functionalities) {
-  const groups = [
-    { id: 'map', label: 'Map', items: [item('filters', 'Map filters', 'layers'), item('extent', 'Home extent', 'extent')] },
-  ]
-  const game = [item('resources', 'Resources', 'resources'), item('plans', 'Plans', 'plans')]
-  if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_GAME)) game.push(item('exercise-control', 'Exercise control', 'control'))
-  groups.push({ id: 'game', label: 'Game', items: game })
+  const groups = []
+  if (hasFunctionality(functionalities, FunctionalityCodes.MAP_VIEW)) {
+    const mapItems = [item('filters', 'Map filters', 'layers'), item('extent', 'Home extent', 'extent')]
+    if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_MAP)) {
+      mapItems.push(item('map-admin', 'Map catalog', 'settings'))
+    }
+    groups.push({ id: 'map', label: 'Map', items: mapItems })
+  }
+
   const admin = []
   if (canOpenDirectory(functionalities)) admin.push(item('directory', 'Users and sides', 'directory'))
   if (canOpenOrbat(functionalities)) admin.push(item('orbat', 'ORBAT', 'orbat'))
+  if (hasFunctionality(functionalities, FunctionalityCodes.VIEW_AUDIT)) admin.push(item('audit', 'Audit', 'sessions'))
+  if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_ICONS)) admin.push(item('icons', 'Icons', 'table'))
   if (admin.length) groups.push({ id: 'admin', label: 'Administration', items: admin })
   return groups
 }
@@ -60,12 +66,21 @@ export function sectionsForFunctionalities(functionalities) {
   }
   if (canOpenOrbat(functionalities)) sections.push({ id: 'orbat', kicker: 'Records', label: 'ORBAT', icon: 'orbat' })
   if (canOpenDirectory(functionalities)) sections.push({ id: 'users', kicker: 'Access', label: 'User management', icon: 'directory' })
+  if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_MAP)) {
+    sections.push({ id: 'map', kicker: 'GIS', label: 'Map catalog', icon: 'settings' })
+  }
+  if (hasFunctionality(functionalities, FunctionalityCodes.VIEW_AUDIT)) {
+    sections.push({ id: 'audit', kicker: 'Records', label: 'Audit', icon: 'sessions' })
+  }
   return sections
 }
 
 /** Which tool panel an application-menu section opens. */
 export const SECTION_PANEL = Object.freeze({
-  game: 'exercise-control',
+  scenario: 'scenario-admin',
+  game: 'game-admin',
   orbat: 'orbat',
   users: 'directory',
+  map: 'map-admin',
+  audit: 'audit',
 })

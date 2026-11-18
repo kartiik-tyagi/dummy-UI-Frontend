@@ -81,7 +81,7 @@ These exist in the older GIS Foundation application and are **not** built here. 
 - An in-app config editor for JSON files
 - A live STOMP / Kafka / ActiveMQ client (the stream panel is a stream walker inside the API)
 
-`public/config/*.json` is leftover. No file under `src/` reads it. Editing those JSON files changes nothing on screen.
+`public/config` was removed. Product configuration comes from the backend (`/auth/login-context`, `/map/config`, directory masters).
 
 ## How to keep this book true
 

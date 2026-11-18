@@ -1,23 +1,15 @@
 import { FunctionalityCodes, hasFunctionality } from '../auth/functionalityCodes'
 import { navigationForFunctionalities, sectionsForFunctionalities } from '../auth/access'
 import { logger } from '../lib/logger'
-import { clockStart, mapFilters, mapService, mapView, phases, plannedCenters } from './fixtures'
+import { clockStart, plannedCenters } from './fixtures'
+import { ApiError } from './errors'
 import { get } from './http'
 import { paletteFallback, roleLabel, themeFromEntity } from './mappers'
 
 function filtersFromMapConfig(mapConfig) {
   const layers = Array.isArray(mapConfig?.layers) ? mapConfig.layers : []
   if (!layers.length) {
-    return mapFilters.map(({ id, label, group, layers: wms, base, transparent }) => ({
-      id,
-      label,
-      group,
-      layers: wms,
-      base,
-      transparent,
-      visible: id === 'countries' || id === 'places',
-      opacity: 1,
-    }))
+    throw new ApiError('The map catalog has no layers. Ask an administrator to configure map layers.', 'UNAVAILABLE')
   }
   return layers.map((layer) => ({
     id: layer.code,
@@ -33,7 +25,9 @@ function filtersFromMapConfig(mapConfig) {
 
 function mapViewFromConfig(mapConfig) {
   const view = mapConfig?.view
-  if (!view) return mapView
+  if (!view) {
+    throw new ApiError('The map catalog has no view defaults.', 'UNAVAILABLE')
+  }
   return {
     latitude: view.centerLat,
     longitude: view.centerLon,
@@ -78,8 +72,13 @@ export async function buildSession(me) {
     soft(get('/themes'), []),
     soft(get('/sides'), []),
     canScenario || canGame ? soft(get('/scenarios'), []) : Promise.resolve([]),
-    soft(get('/map/config'), null),
+    get('/map/config'),
   ])
+
+  if (!mapConfig?.layers?.length || !mapConfig?.view) {
+    logger.error('session.map_config_missing', { hasConfig: Boolean(mapConfig), layers: mapConfig?.layers?.length || 0 })
+    throw new ApiError('The map catalog is not available. Sign-in cannot continue until it is configured.', 'UNAVAILABLE')
+  }
 
   const gameLists = canGame
     ? await Promise.all(scenarioRows.map((row) => soft(get(`/scenarios/${row.id}/games`), [])))
@@ -103,6 +102,10 @@ export async function buildSession(me) {
     moonphases: row.moonphases || '',
   }))
   const activeGame = games.find((item) => item.active)
+  const navigation = navigationForFunctionalities(functionalities)
+  if (!navigation.length) {
+    throw new ApiError('This account has no map or administration access.', 'FORBIDDEN')
+  }
 
   return {
     profile: profileFromMe(me, sides),
@@ -114,18 +117,18 @@ export async function buildSession(me) {
     activeScenarioId: activeScenario?.id || '',
     activeGame: { id: activeGame?.id || '', name: activeGame?.name || '' },
     games,
-    navigation: navigationForFunctionalities(functionalities),
+    navigation,
     sections: sectionsForFunctionalities(functionalities),
     resources: [],
     plans: [],
     filters: filtersFromMapConfig(mapConfig),
-    phases,
+    phases: [],
     canSelectScenario: canScenario,
     canSelectGame: canGame,
     canControlGame: canGame,
     mapView: mapViewFromConfig(mapConfig),
     plannedCenters,
-    mapService: mapConfig?.server?.wmsUrl || mapService,
+    mapService: mapConfig.server?.wmsUrl || '',
     mapConfig,
     clockStart,
     exerciseTitle: 'Exercise GIS Warplan',
