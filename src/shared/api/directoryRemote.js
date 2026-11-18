@@ -6,7 +6,7 @@ let identity = null
 let remote = null
 let provider = null
 
-/** { userId: string, features: string[] } of the signed-in user. */
+/** { userId: string, functionalities: string[] } of the signed-in user. */
 export function setIdentity(value) {
   identity = value
   if (!value) remote = null
@@ -16,7 +16,7 @@ export function getIdentity() {
   return identity
 }
 
-/** The slice of the snapshot served by the backend (users, teams, roles, themes, features, swatches...). */
+/** The slice of the snapshot served by the backend (users, sides, roles, themes, functionalities, swatches...). */
 export function setRemote(slice) {
   remote = slice
 }

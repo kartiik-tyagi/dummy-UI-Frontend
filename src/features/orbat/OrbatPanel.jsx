@@ -13,7 +13,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { FeatureCodes, hasFeature } from '../../shared/auth/featureCodes'
+import { FunctionalityCodes, hasFunctionality } from '../../shared/auth/functionalityCodes'
 import { hasAny } from '../../shared/auth/access'
 import { get } from '../../shared/api/http'
 import * as directoryApi from '../../shared/api/client'
@@ -40,7 +40,7 @@ function statusOf(record) {
   return record?.metadata?.status === 'finalized' ? 'finalized' : 'draft'
 }
 
-function NodeDetails({ node, nodes, nodeTypes, teamsById, userName, editable, canMark, onChange, onAdd, onDelete, onMark }) {
+function NodeDetails({ node, nodes, nodeTypes, sidesById, userName, editable, canMark, onChange, onAdd, onDelete, onMark }) {
   const [name, setName] = useState(node?.name || '')
   useEffect(() => {
     setName(node?.name || '')
@@ -80,8 +80,8 @@ function NodeDetails({ node, nodes, nodeTypes, teamsById, userName, editable, ca
         ))}
       </TextField>
       <Box>
-        <Caption>Home team</Caption>
-        <Typography variant="body2">{teamsById.get(node.homeTeamId)?.name || `Team ${node.homeTeamId}`}</Typography>
+        <Caption>Home side</Caption>
+        <Typography variant="body2">{sidesById.get(node.homeSideId)?.name || `Side ${node.homeSideId}`}</Typography>
       </Box>
       <Box>
         <Caption>Position</Caption>
@@ -113,26 +113,28 @@ function NodeDetails({ node, nodes, nodeTypes, teamsById, userName, editable, ca
 export default function OrbatPanel() {
   const session = useSessionStore((state) => state.session)
   const push = useToastStore((state) => state.push)
-  const features = session?.features
+  const functionalities = session?.functionalities
   const userId = session?.profile?.id
 
-  const canStandard = hasFeature(features, FeatureCodes.MANAGE_STANDARD_ORBAT)
-  const canMark = hasFeature(features, FeatureCodes.MARK_AS_USER)
-  const canPlaying = hasFeature(features, FeatureCodes.MANAGE_PLAYING_ORBAT)
-  const canAlliance = hasFeature(features, FeatureCodes.MANAGE_ALLIANCE)
-  const showStandard = canStandard || canMark || hasAny(features, FeatureCodes.MANAGE_USERS)
+  const canStandard = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_STANDARD_ORBAT)
+  const canMark = hasFunctionality(functionalities, FunctionalityCodes.MARK_AS_USER)
+  const canPlaying = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_PLAYING_ORBAT)
+  const canAlliance = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_ALLIANCE)
+  const showStandard = canStandard || canMark || hasAny(functionalities, FunctionalityCodes.MANAGE_USERS)
   const showPlaying = canPlaying || canAlliance
 
   const [tab, setTab] = useState(showStandard ? 'standard' : 'playing')
-  const [teams, setTeams] = useState(null)
+  const [sides, setSides] = useState(null)
   const [nodeTypes, setNodeTypes] = useState(() => new Map())
   const [roles, setRoles] = useState(EMPTY_LIST)
   const [themes, setThemes] = useState(EMPTY_LIST)
   const [scenarios, setScenarios] = useState(session?.scenarios || EMPTY_LIST)
   const [markedNodes, setMarkedNodes] = useState(() => new Map())
 
-  const [teamId, setTeamId] = useState('')
+  const [sideId, setSideId] = useState('')
   const [scenarioId, setScenarioId] = useState(session?.activeScenarioId || '')
+  const [games, setGames] = useState(() => (session?.games || EMPTY_LIST).filter((item) => item.scenarioId === (session?.activeScenarioId || '')))
+  const [gameId, setGameId] = useState(session?.activeGame?.id || '')
   const [orbats, setOrbats] = useState(EMPTY_LIST)
   const [orbatId, setOrbatId] = useState('')
   const [standard, setStandard] = useState(undefined)
@@ -155,8 +157,8 @@ export default function OrbatPanel() {
   const status = statusOf(record)
   const editable = tab === 'standard' ? canStandard && Boolean(record) : (canPlaying || canAlliance) && Boolean(record)
 
-  const teamsById = useMemo(() => new Map((teams || []).map((team) => [team.id, team])), [teams])
-  const countryTeams = useMemo(() => (teams || []).filter((team) => team.kind === 'country'), [teams])
+  const sidesById = useMemo(() => new Map((sides || []).map((side) => [side.id, side])), [sides])
+  const countrySides = useMemo(() => (sides || []).filter((side) => side.kind === 'country'), [sides])
   const index = useMemo(() => indexNodes(nodes), [nodes])
   const selected = index.byId.get(selectedId) || null
   const userByNode = useMemo(() => markedNodes, [markedNodes])
@@ -172,26 +174,26 @@ export default function OrbatPanel() {
     const soft = (promise, apply) =>
       promise.then((value) => live && apply(value)).catch(() => {})
     api
-      .listTeams()
+      .listSides()
       .then((rows) => {
         if (!live) return
-        setTeams(rows)
-        const countries = rows.filter((team) => team.kind === 'country')
-        const own = countries.find((team) => team.id === session?.me?.administeredTeamId)
-        setTeamId((current) => current || String((own || countries[0])?.id ?? ''))
+        setSides(rows)
+        const countries = rows.filter((side) => side.kind === 'country')
+        const own = countries.find((side) => side.id === session?.me?.administeredSideId)
+        setSideId((current) => current || String((own || countries[0])?.id ?? ''))
       })
-      .catch((error) => live && setLoadError(error?.message || 'The teams could not be loaded.'))
+      .catch((error) => live && setLoadError(error?.message || 'The sides could not be loaded.'))
     soft(api.listNodeTypes(), (rows) => setNodeTypes(new Map(rows.map((type) => [type.id, type]))))
     if (canMark) soft(api.listRoles(), setRoles)
     soft(get('/themes'), setThemes)
-    if (hasFeature(features, FeatureCodes.MANAGE_USERS)) {
+    if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_USERS)) {
       soft(api.listUsers(), (rows) => {
         const next = new Map()
         rows.forEach((user) => user.standardNodeId && next.set(user.standardNodeId, user.name))
         setMarkedNodes((current) => new Map([...next, ...current]))
       })
     }
-    if (hasFeature(features, FeatureCodes.MANAGE_SCENARIO)) {
+    if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_SCENARIO)) {
       soft(api.listScenarios(), (rows) =>
         setScenarios(rows.map((row) => ({ id: String(row.id), name: row.name, active: Boolean(row.active) }))),
       )
@@ -199,37 +201,62 @@ export default function OrbatPanel() {
     return () => {
       live = false
     }
-  }, [canMark, features, session?.me?.administeredTeamId])
+  }, [canMark, functionalities, session?.me?.administeredSideId])
 
-  // Standard ORBAT of the chosen team
+  // Standard ORBAT of the chosen side
   const loadStandard = useCallback(async () => {
-    if (!teamId) return
+    if (!sideId) return
     setLoading(true)
     setLoadError('')
     try {
-      setStandard(await api.getStandardOrbat(teamId))
+      setStandard(await api.getStandardOrbat(sideId))
     } catch (error) {
       setStandard(undefined)
       setLoadError(error?.message || 'The standard ORBAT could not be loaded.')
     } finally {
       setLoading(false)
     }
-  }, [teamId])
+  }, [sideId])
 
   useEffect(() => {
     if (tab === 'standard') loadStandard()
   }, [tab, loadStandard])
 
-  // Playing ORBATs of the chosen scenario
-  const loadPlaying = useCallback(async (keepId) => {
+  // Games of the chosen scenario
+  useEffect(() => {
     if (!scenarioId) {
+      setGames(EMPTY_LIST)
+      setGameId('')
+      return undefined
+    }
+    let live = true
+    const fromSession = (session?.games || EMPTY_LIST).filter((item) => item.scenarioId === scenarioId)
+    const pick = (rows) => {
+      setGames(rows)
+      setGameId((current) => {
+        if (current && rows.some((row) => row.id === current)) return current
+        return (rows.find((row) => row.active) || rows[0])?.id || ''
+      })
+    }
+    api
+      .listGames(scenarioId)
+      .then((rows) => live && pick(rows.map((row) => ({ id: String(row.id), name: row.name, active: Boolean(row.active), moonphases: row.moonphases || '' }))))
+      .catch(() => live && pick(fromSession))
+    return () => {
+      live = false
+    }
+  }, [scenarioId, session?.games])
+
+  // Playing ORBATs of the chosen game
+  const loadPlaying = useCallback(async (keepId) => {
+    if (!gameId) {
       setOrbats(EMPTY_LIST)
       return
     }
     setLoading(true)
     setLoadError('')
     try {
-      const rows = await api.listPlayingOrbats(scenarioId)
+      const rows = await api.listPlayingOrbats(gameId)
       setOrbats(rows)
       setOrbatId((current) => {
         const wanted = keepId ?? current
@@ -242,7 +269,7 @@ export default function OrbatPanel() {
     } finally {
       setLoading(false)
     }
-  }, [scenarioId])
+  }, [gameId])
 
   useEffect(() => {
     if (tab === 'playing') loadPlaying()
@@ -280,10 +307,10 @@ export default function OrbatPanel() {
     if (action === 'delete') openDelete(id)
   }
 
-  const homeTeamNumeric = tab === 'standard' ? Number(teamId) : record?.teamId
+  const homeSideNumeric = tab === 'standard' ? Number(sideId) : record?.sideId
 
   const addNode = async ({ name, nodeTypeId }) => {
-    const result = addChild(nodes, dialog.id, { name, nodeTypeId, homeTeamId: homeTeamNumeric })
+    const result = addChild(nodes, dialog.id, { name, nodeTypeId, homeSideId: homeSideNumeric })
     setNodes(result.nodes)
     setSelectedId(result.node.id)
     setExpanded((current) => new Set(current).add(dialog.id))
@@ -311,7 +338,7 @@ export default function OrbatPanel() {
     setSaveError('')
     try {
       const body = { orbatJson: { ...(record.orbatJson || {}), nodes }, metadata, version: record.version }
-      const saved = tab === 'standard' ? await api.saveStandardOrbat(teamId, { ...body, metadata: record.metadata || undefined }) : await api.savePlayingOrbat(record.id, body)
+      const saved = tab === 'standard' ? await api.saveStandardOrbat(sideId, { ...body, metadata: record.metadata || undefined }) : await api.savePlayingOrbat(gameId, record.id, body)
       if (tab === 'standard') setStandard(saved)
       else setOrbats((current) => current.map((item) => (item.id === saved.id ? saved : item)))
       push(metadata?.status === 'finalized' ? 'ORBAT finalized.' : 'ORBAT saved.', 'success')
@@ -332,7 +359,7 @@ export default function OrbatPanel() {
     setMarkedNodes((current) => new Map(current).set(node.id, created.name))
     push(`User ${created.name} created.`, 'success')
     setDialog(null)
-    if (hasFeature(features, FeatureCodes.MANAGE_USERS)) {
+    if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_USERS)) {
       useDirectoryStore.getState().run(() => directoryApi.loadWorkbench(userId)).catch(() => {})
     }
   }
@@ -340,7 +367,7 @@ export default function OrbatPanel() {
   const createStandard = async () => {
     setSaving(true)
     try {
-      setStandard(await api.createStandardOrbat(teamId))
+      setStandard(await api.createStandardOrbat(sideId))
     } catch (error) {
       push(error?.message || 'The standard ORBAT could not be created.', 'error')
     } finally {
@@ -349,16 +376,16 @@ export default function OrbatPanel() {
   }
 
   const replicate = async (id) => {
-    const created = await api.replicatePlayingOrbat(scenarioId, id)
+    const created = await api.replicatePlayingOrbat(gameId, id)
     setDialog(null)
     push(`Playing ORBAT for ${created.name} created.`, 'success')
     await loadPlaying(created.id)
   }
 
   const createAlliance = async (body) => {
-    const created = await api.createAlliance(scenarioId, body)
+    const created = await api.createAlliance(gameId, body)
     setDialog(null)
-    push(`Alliance ${created.team?.name || ''} created.`, 'success')
+    push(`Alliance ${created.side?.name || ''} created.`, 'success')
     await loadPlaying(created.playingOrbatId)
   }
 
@@ -369,7 +396,7 @@ export default function OrbatPanel() {
 
   const removeOrbat = async () => {
     try {
-      await api.deletePlayingOrbat(record.id)
+      await api.deletePlayingOrbat(gameId, record.id)
       push('Playing ORBAT deleted.', 'success')
       setDialog(null)
       setOrbatId('')
@@ -385,9 +412,9 @@ export default function OrbatPanel() {
   const markedHere = (id) => userByNode.has(id)
 
   if (!showStandard && !showPlaying) return <Caption>Your role does not include ORBAT.</Caption>
-  if (!teams && !loadError) return <LoadingState label="Opening ORBAT" />
+  if (!sides && !loadError) return <LoadingState label="Opening ORBAT" />
 
-  const replicaTeams = countryTeams.filter((team) => !orbats.some((item) => item.teamId === team.id))
+  const replicaSides = countrySides.filter((side) => !orbats.some((item) => item.sideId === side.id))
   const delNode = dialog?.kind === 'delete' ? index.byId.get(dialog.id) : null
   const delCount = delNode ? descendantIds(nodes, delNode.id).size : 0
 
@@ -410,13 +437,13 @@ export default function OrbatPanel() {
           <TextField
             select
             size="small"
-            label="Team"
-            value={teamId}
-            onChange={(event) => guard(() => setTeamId(event.target.value))}
+            label="Side"
+            value={sideId}
+            onChange={(event) => guard(() => setSideId(event.target.value))}
             sx={{ minWidth: 200 }}
           >
-            {countryTeams.map((team) => (
-              <MenuItem key={team.id} value={String(team.id)}>{team.name}</MenuItem>
+            {countrySides.map((side) => (
+              <MenuItem key={side.id} value={String(side.id)}>{side.name}</MenuItem>
             ))}
           </TextField>
           {standard === null && canStandard ? (
@@ -442,6 +469,20 @@ export default function OrbatPanel() {
           <TextField
             select
             size="small"
+            label="Game"
+            value={gameId}
+            onChange={(event) => guard(() => setGameId(event.target.value))}
+            sx={{ minWidth: 150 }}
+            disabled={!games.length}
+            helperText={scenarioId && !games.length ? 'No games' : undefined}
+          >
+            {games.map((item) => (
+              <MenuItem key={item.id} value={item.id}>{item.name}{item.active ? ' · active' : ''}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
             label="Side"
             value={orbatId}
             onChange={(event) => guard(() => setOrbatId(event.target.value))}
@@ -454,8 +495,8 @@ export default function OrbatPanel() {
               </MenuItem>
             ))}
           </TextField>
-          {canPlaying ? <Button size="small" variant="outlined" onClick={() => setDialog({ kind: 'replica' })} disabled={!scenarioId}>Replica</Button> : null}
-          {canAlliance ? <Button size="small" variant="outlined" onClick={() => setDialog({ kind: 'alliance' })} disabled={!scenarioId}>Alliance</Button> : null}
+          {canPlaying ? <Button size="small" variant="outlined" onClick={() => setDialog({ kind: 'replica' })} disabled={!gameId}>Replica</Button> : null}
+          {canAlliance ? <Button size="small" variant="outlined" onClick={() => setDialog({ kind: 'alliance' })} disabled={!gameId}>Alliance</Button> : null}
         </Stack>
       )}
 
@@ -493,8 +534,8 @@ export default function OrbatPanel() {
       {!loading && !record && !loadError ? (
         <Caption>
           {tab === 'standard'
-            ? standard === null ? 'This team has no standard ORBAT yet.' : 'Choose a team.'
-            : scenarioId ? 'This scenario has no playing ORBAT yet. Replicate a standard ORBAT or create an alliance.' : 'Choose a scenario.'}
+            ? standard === null ? 'This side has no standard ORBAT yet.' : 'Choose a side.'
+            : gameId ? 'This game has no playing ORBAT yet. Replicate a standard ORBAT or create an alliance.' : 'Choose a scenario and a game.'}
         </Caption>
       ) : null}
 
@@ -528,7 +569,7 @@ export default function OrbatPanel() {
               node={selected}
               nodes={nodes}
               nodeTypes={nodeTypes}
-              teamsById={teamsById}
+              sidesById={sidesById}
               userName={selected ? userByNode.get(selected.id) : ''}
               editable={editable}
               canMark={tab === 'standard' && canMark}
@@ -585,8 +626,8 @@ export default function OrbatPanel() {
         onClose={() => setDialog(null)}
         onSubmit={markUser}
       />
-      <ReplicaDialog open={dialog?.kind === 'replica'} teams={replicaTeams} onClose={() => setDialog(null)} onSubmit={replicate} />
-      <AllianceDialog open={dialog?.kind === 'alliance'} teams={countryTeams} themes={themes} onClose={() => setDialog(null)} onSubmit={createAlliance} />
+      <ReplicaDialog open={dialog?.kind === 'replica'} sides={replicaSides} onClose={() => setDialog(null)} onSubmit={replicate} />
+      <AllianceDialog open={dialog?.kind === 'alliance'} sides={countrySides} themes={themes} onClose={() => setDialog(null)} onSubmit={createAlliance} />
       <ConfirmDialog
         open={dialog?.kind === 'finalize'}
         title="Finalize playing ORBAT"
@@ -600,7 +641,7 @@ export default function OrbatPanel() {
       <ConfirmDialog
         open={dialog?.kind === 'delete-orbat'}
         title="Delete playing ORBAT"
-        message={`Delete ${record?.name || 'this ORBAT'} from the scenario? Users assigned to it are unassigned.`}
+        message={`Delete ${record?.name || 'this ORBAT'} from the game? Users assigned to it are unassigned.`}
         confirmLabel="Delete"
         onClose={() => setDialog(null)}
         onConfirm={removeOrbat}

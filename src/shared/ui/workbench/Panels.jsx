@@ -10,7 +10,7 @@ import { FilterList } from '../FilterList'
 import { ExerciseControls } from '../ExerciseControls'
 import { LoadingState } from '../LoadingState'
 import { EMPTY_LIST } from '../../lib/empty'
-import { FeatureCodes, hasFeature } from '../../auth/featureCodes'
+import { FunctionalityCodes, hasFunctionality } from '../../auth/functionalityCodes'
 import { canOpenOrbat } from '../../auth/access'
 import OrbatPanel from '../../../features/orbat/OrbatPanel'
 import { IconField } from '../IconPicker'
@@ -34,7 +34,7 @@ export function PanelBody({ panel }) {
   const flag = {
     features: 'featureTable',
     properties: 'propertiesPanel',
-    teams: 'teamMapIcons',
+    sides: 'sideMapIcons',
     'map-settings': 'mapSettings',
     planning: 'planningCanvas',
     alerts: 'alertsPanel',
@@ -56,7 +56,7 @@ export function PanelBody({ panel }) {
   if (panel === 'features') return <FeatureTable />
   if (panel === 'properties') return <PropertiesPanel />
   if (panel === 'draw') return <DrawPanel />
-  if (panel === 'teams') return <TeamLegend />
+  if (panel === 'sides') return <SideLegend />
   if (panel === 'map-settings') return <MapSettings />
   if (panel === 'planning') return <PlanningPanel />
   if (panel === 'alerts') return <AlertsPanel />
@@ -96,8 +96,8 @@ export function FeatureTable() {
   return (
     <List disablePadding>
       {features.map((feature) => (
-        <ListItemButton key={feature.id} selected={feature.id === selectedId} onClick={() => select(feature.id, true)}>
-          <ListItemText primary={feature.name} secondary={`${feature.featureType} · ${feature.layerId}`} />
+        <ListItemButton key={functionality.id} selected={feature.id === selectedId} onClick={() => select(feature.id, true)}>
+          <ListItemText primary={functionality.name} secondary={`${feature.featureType} · ${feature.layerId}`} />
         </ListItemButton>
       ))}
     </List>
@@ -114,18 +114,18 @@ function PropertiesPanel() {
   if (!feature) return <Caption>Select a feature on the map or in the table.</Caption>
   return (
     <Stack spacing={1}>
-      <Typography variant="body2">{feature.name}</Typography>
+      <Typography variant="body2">{functionality.name}</Typography>
       <Caption>Type {feature.featureType}</Caption>
       <Caption>Layer {feature.layerId}</Caption>
       <Caption>Geometry {feature.geometry?.type}</Caption>
-      <Caption>Team {data.teams.find((team) => team.id === feature.teamId)?.name || 'None'}</Caption>
+      <Caption>Side {data.sides.find((side) => side.id === feature.sideId)?.name || 'None'}</Caption>
       <Button color="error" onClick={() => setConfirming(true)}>
         Remove
       </Button>
       <ConfirmDialog
         open={confirming}
         title="Remove feature"
-        message={`Remove ${feature.name} from the picture?`}
+        message={`Remove ${functionality.name} from the picture?`}
         confirmLabel="Remove"
         onClose={() => setConfirming(false)}
         onConfirm={() =>
@@ -191,17 +191,17 @@ function DrawPanel() {
   )
 }
 
-function TeamLegend() {
-  const teams = useDirectoryStore((state) => state.data?.teams ?? EMPTY_LIST)
+function SideLegend() {
+  const sides = useDirectoryStore((state) => state.data?.sides ?? EMPTY_LIST)
   const swatches = useDirectoryStore((state) => state.data?.swatches ?? EMPTY_LIST)
   return (
     <Stack spacing={1}>
-      <Caption>Team colour is drawn on units when team markers are switched on.</Caption>
-      {teams.map((team) => {
-        const swatch = swatches.find((item) => item.id === team.swatchId)
+      <Caption>Side colour is drawn on units when side markers are switched on.</Caption>
+      {sides.map((side) => {
+        const swatch = swatches.find((item) => item.id === side.swatchId)
         return (
-          <Typography key={team.id} variant="body2">
-            {team.name} · {swatch?.name || 'Unassigned'}
+          <Typography key={side.id} variant="body2">
+            {side.name} · {swatch?.name || 'Unassigned'}
           </Typography>
         )
       })}
@@ -304,7 +304,7 @@ function PlanningPanel() {
                 const url = URL.createObjectURL(new Blob([JSON.stringify(collection, null, 2)], { type: 'application/geo+json' }))
                 const link = document.createElement('a')
                 link.href = url
-                link.download = 'jayant-plan.geojson'
+                link.download = 'gis-warplan-plan.geojson'
                 link.click()
                 URL.revokeObjectURL(url)
               }).catch((error) => useToastStore.getState().push(error.message, 'error'))
@@ -394,7 +394,7 @@ function AlertsPanel() {
         <Box key={alert.id}>
           <Typography variant="body2">{alert.name}</Typography>
           <Caption>
-            {alert.team} · {alert.zone}
+            {alert.side} · {alert.zone}
           </Caption>
         </Box>
       ))}
@@ -518,7 +518,7 @@ function StreamPanel() {
 
 function Catalogue({ kind }) {
   const features = useDirectoryStore((state) => state.data?.features ?? EMPTY_LIST)
-  const teams = useDirectoryStore((state) => state.data?.teams ?? EMPTY_LIST)
+  const sides = useDirectoryStore((state) => state.data?.sides ?? EMPTY_LIST)
   const commit = useCommit()
   const rows = features.filter((feature) => feature.featureType === kind)
   const [edit, setEdit] = useState(null)
@@ -535,10 +535,10 @@ function Catalogue({ kind }) {
       {edit ? (
         <Stack spacing={1}>
           <TextField size="small" label="Name" value={edit.name} onChange={(event) => setEdit({ ...edit, name: event.target.value })} />
-          <TextField select size="small" label="Team" value={edit.teamId || ''} onChange={(event) => setEdit({ ...edit, teamId: event.target.value })}>
+          <TextField select size="small" label="Side" value={edit.sideId || ''} onChange={(event) => setEdit({ ...edit, sideId: event.target.value })}>
             <MenuItem value="">None</MenuItem>
-            {teams.map((team) => (
-              <MenuItem key={team.id} value={team.id}>{team.name}</MenuItem>
+            {sides.map((side) => (
+              <MenuItem key={side.id} value={side.id}>{side.name}</MenuItem>
             ))}
           </TextField>
           <Button
@@ -555,45 +555,45 @@ function Catalogue({ kind }) {
   )
 }
 
-function choiceLabel(item, teams, selfId) {
+function choiceLabel(item, sides, selfId) {
   if (!item.takenBy || item.takenBy === selfId) return item.name
-  const holder = teams.find((team) => team.id === item.takenBy)
+  const holder = sides.find((side) => side.id === item.takenBy)
   return `${item.name} · ${holder?.name || 'in use'}`
 }
 
-function ChoiceField({ label, value, onChange, options, selfId, teams }) {
+function ChoiceField({ label, value, onChange, options, selfId, sides }) {
   return (
     <TextField select size="small" label={label} value={value} onChange={onChange}>
       <MenuItem value="">Choose</MenuItem>
       {options.map((item) => (
         <MenuItem key={item.id} value={item.id} disabled={Boolean(item.takenBy) && item.takenBy !== selfId}>
-          {choiceLabel(item, teams, selfId)}
+          {choiceLabel(item, sides, selfId)}
         </MenuItem>
       ))}
     </TextField>
   )
 }
 
-function TeamEditor({ team, swatches, themes, teams, canEdit }) {
+function SideEditor({ side, swatches, themes, sides, canEdit }) {
   const commit = useCommit()
-  const [draft, setDraft] = useState({ name: team.name, swatchId: team.swatchId, themeId: team.themeId, icon: team.icon })
+  const [draft, setDraft] = useState({ name: side.name, swatchId: side.swatchId, themeId: side.themeId, icon: side.icon })
   const [confirming, setConfirming] = useState(false)
   useEffect(() => {
-    setDraft({ name: team.name, swatchId: team.swatchId, themeId: team.themeId, icon: team.icon })
-  }, [team.name, team.swatchId, team.themeId, team.icon])
-  const kind = team.kind === 'alliance' ? 'alliance' : 'country'
+    setDraft({ name: side.name, swatchId: side.swatchId, themeId: side.themeId, icon: side.icon })
+  }, [side.name, side.swatchId, side.themeId, side.icon])
+  const kind = side.kind === 'alliance' ? 'alliance' : 'country'
   if (!canEdit) {
     return (
       <Typography variant="body2">
-        {team.name} <Caption>{kind}</Caption>
+        {side.name} <Caption>{kind}</Caption>
       </Typography>
     )
   }
   return (
     <Stack spacing={1}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-        <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: team.colour || 'action.disabledBackground', flexShrink: 0 }} aria-hidden />
-        <Typography variant="body2" sx={{ flex: 1 }}>{team.name}</Typography>
+        <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: side.colour || 'action.disabledBackground', flexShrink: 0 }} aria-hidden />
+        <Typography variant="body2" sx={{ flex: 1 }}>{side.name}</Typography>
         <Caption>{kind}</Caption>
       </Stack>
       <TextField size="small" label="Name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
@@ -601,21 +601,21 @@ function TeamEditor({ team, swatches, themes, teams, canEdit }) {
         label="Map colour"
         value={draft.swatchId}
         options={swatches}
-        selfId={team.id}
-        teams={teams}
+        selfId={side.id}
+        sides={sides}
         onChange={(event) => setDraft({ ...draft, swatchId: event.target.value })}
       />
       <ChoiceField
         label="Theme"
         value={draft.themeId}
         options={themes}
-        selfId={team.id}
-        teams={teams}
+        selfId={side.id}
+        sides={sides}
         onChange={(event) => setDraft({ ...draft, themeId: event.target.value })}
       />
       <IconField value={draft.icon} onChange={(icon) => setDraft({ ...draft, icon })} />
       <Stack direction="row" spacing={1}>
-        <Button size="small" onClick={() => commit((userId) => api.saveTeam(userId, { id: team.id, ...draft }))}>
+        <Button size="small" onClick={() => commit((userId) => api.saveSide(userId, { id: side.id, ...draft }))}>
           Save
         </Button>
         <Button size="small" color="error" onClick={() => setConfirming(true)}>
@@ -624,17 +624,17 @@ function TeamEditor({ team, swatches, themes, teams, canEdit }) {
       </Stack>
       <ConfirmDialog
         open={confirming}
-        title="Remove team"
-        message={`Remove ${team.name}? Its ORBATs and members are affected.`}
+        title="Remove side"
+        message={`Remove ${side.name}? Its ORBATs and members are affected.`}
         confirmLabel="Remove"
         onClose={() => setConfirming(false)}
-        onConfirm={() => commit((userId) => api.deleteTeam(userId, team.id)).then(() => setConfirming(false)).catch(() => setConfirming(false))}
+        onConfirm={() => commit((userId) => api.deleteSide(userId, side.id)).then(() => setConfirming(false)).catch(() => setConfirming(false))}
       />
     </Stack>
   )
 }
 
-function UserRow({ item, roles, teams, canEdit }) {
+function UserRow({ item, roles, sides, canEdit }) {
   const commit = useCommit()
   const [password, setPassword] = useState('')
   return (
@@ -660,11 +660,11 @@ function UserRow({ item, roles, teams, canEdit }) {
           <TextField
             select
             size="small"
-            label="Administers team"
-            value={item.teamId || ''}
-            onChange={(event) => commit((userId) => api.assignUserTeam(userId, item.id, event.target.value))}
+            label="Administers side"
+            value={item.sideId || ''}
+            onChange={(event) => commit((userId) => api.assignUserSide(userId, item.id, event.target.value))}
           >
-            {teams.map((entry) => (
+            {sides.map((entry) => (
               <MenuItem key={entry.id} value={entry.id}>{entry.name}</MenuItem>
             ))}
           </TextField>
@@ -695,14 +695,14 @@ function UserRow({ item, roles, teams, canEdit }) {
 function RoleEditor({ role, catalog, canEdit }) {
   const commit = useCommit()
   const [open, setOpen] = useState(false)
-  const [draft, setDraft] = useState({ name: role.name, featureIds: role.featureIds })
+  const [draft, setDraft] = useState({ name: role.name, functionalityIds: role.functionalityIds })
   useEffect(() => {
-    setDraft({ name: role.name, featureIds: role.featureIds })
-  }, [role.name, role.featureIds])
+    setDraft({ name: role.name, functionalityIds: role.functionalityIds })
+  }, [role.name, role.functionalityIds])
   const toggle = (id) =>
     setDraft((current) => ({
       ...current,
-      featureIds: current.featureIds.includes(id) ? current.featureIds.filter((item) => item !== id) : [...current.featureIds, id],
+      functionalityIds: current.functionalityIds.includes(id) ? current.functionalityIds.filter((item) => item !== id) : [...current.functionalityIds, id],
     }))
   return (
     <Stack spacing={0.5}>
@@ -714,11 +714,11 @@ function RoleEditor({ role, catalog, canEdit }) {
       {canEdit && open ? (
         <Stack spacing={0.5}>
           <TextField size="small" label="Name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
-          {catalog.map((feature) => (
+          {catalog.map((functionality) => (
             <FormControlLabel
-              key={feature.id}
-              label={feature.name}
-              control={<Checkbox size="small" checked={draft.featureIds.includes(feature.id)} onChange={() => toggle(feature.id)} />}
+              key={functionality.id}
+              label={functionality.name}
+              control={<Checkbox size="small" checked={draft.functionalityIds.includes(functionality.id)} onChange={() => toggle(functionality.id)} />}
               sx={{ m: 0, '& .MuiFormControlLabel-label': { fontSize: 13 } }}
             />
           ))}
@@ -734,18 +734,18 @@ function RoleEditor({ role, catalog, canEdit }) {
 
 function DirectoryPanel() {
   const data = useDirectoryStore((state) => state.data)
-  const features = useSessionStore((state) => state.session?.features)
+  const functionalities = useSessionStore((state) => state.session?.functionalities)
   const commit = useCommit()
-  const [team, setTeam] = useState({ name: '', swatchId: '', themeId: '', icon: '' })
+  const [side, setSide] = useState({ name: '', swatchId: '', themeId: '', icon: '' })
   const [role, setRole] = useState({ newId: '', name: '' })
   if (!data) return null
-  const canUsers = hasFeature(features, FeatureCodes.MANAGE_USERS)
-  const canTeams = hasFeature(features, FeatureCodes.MANAGE_TEAMS)
-  const canRoles = hasFeature(features, FeatureCodes.MANAGE_ROLES)
+  const canUsers = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_USERS)
+  const canSides = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_SIDES)
+  const canRoles = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_ROLES)
   const swatches = data.swatches ?? EMPTY_LIST
   const themes = data.themeChoices ?? EMPTY_LIST
-  const catalog = data.featureCatalog ?? EMPTY_LIST
-  if (!canUsers && !canTeams && !canRoles && !hasFeature(features, FeatureCodes.MANAGE_THEMES)) {
+  const catalog = data.functionalityCatalog ?? EMPTY_LIST
+  if (!canUsers && !canSides && !canRoles && !hasFunctionality(functionalities, FunctionalityCodes.MANAGE_THEMES)) {
     return <Caption>Your role does not include administration.</Caption>
   }
   return (
@@ -754,26 +754,26 @@ function DirectoryPanel() {
         <>
           <Typography variant="subtitle2">Users</Typography>
           <Caption>
-            New users are created from an ORBAT node{hasFeature(features, FeatureCodes.MARK_AS_USER) ? ' (ORBAT, then Mark as user)' : ''}.
+            New users are created from an ORBAT node{hasFunctionality(functionalities, FunctionalityCodes.MARK_AS_USER) ? ' (ORBAT, then Mark as user)' : ''}.
           </Caption>
           {data.users.map((item) => (
-            <UserRow key={item.id} item={item} roles={data.roles} teams={data.teams} canEdit={canUsers} />
+            <UserRow key={item.id} item={item} roles={data.roles} sides={data.sides} canEdit={canUsers} />
           ))}
         </>
       ) : null}
-      <Typography variant="subtitle2">Teams</Typography>
-      {data.teams.map((item) => (
-        <TeamEditor key={item.id} team={item} swatches={swatches} themes={themes} teams={data.teams} canEdit={canTeams} />
+      <Typography variant="subtitle2">Sides</Typography>
+      {data.sides.map((item) => (
+        <SideEditor key={item.id} side={item} swatches={swatches} themes={themes} sides={data.sides} canEdit={canSides} />
       ))}
-      {canTeams ? (
+      {canSides ? (
         <>
-          <Typography variant="caption" color="text.secondary">Add a team</Typography>
-          <TextField size="small" label="Team name" value={team.name} onChange={(event) => setTeam({ ...team, name: event.target.value })} />
-          <ChoiceField label="Map colour" value={team.swatchId} options={swatches} selfId="" teams={data.teams} onChange={(event) => setTeam({ ...team, swatchId: event.target.value })} />
-          <ChoiceField label="Theme" value={team.themeId} options={themes} selfId="" teams={data.teams} onChange={(event) => setTeam({ ...team, themeId: event.target.value })} />
-          <IconField value={team.icon} onChange={(icon) => setTeam({ ...team, icon })} />
-          <Button disabled={!team.name.trim()} onClick={() => commit((userId) => api.saveTeam(userId, team)).then(() => setTeam({ name: '', swatchId: '', themeId: '', icon: '' }))}>
-            Add team
+          <Typography variant="caption" color="text.secondary">Add a side</Typography>
+          <TextField size="small" label="Side name" value={side.name} onChange={(event) => setSide({ ...side, name: event.target.value })} />
+          <ChoiceField label="Map colour" value={side.swatchId} options={swatches} selfId="" sides={data.sides} onChange={(event) => setSide({ ...side, swatchId: event.target.value })} />
+          <ChoiceField label="Theme" value={side.themeId} options={themes} selfId="" sides={data.sides} onChange={(event) => setSide({ ...side, themeId: event.target.value })} />
+          <IconField value={side.icon} onChange={(icon) => setSide({ ...side, icon })} />
+          <Button disabled={!side.name.trim()} onClick={() => commit((userId) => api.saveSide(userId, side)).then(() => setSide({ name: '', swatchId: '', themeId: '', icon: '' }))}>
+            Add side
           </Button>
         </>
       ) : null}
@@ -797,8 +797,8 @@ function DirectoryPanel() {
 }
 
 function OrbatGate() {
-  const features = useSessionStore((state) => state.session?.features)
-  if (!canOpenOrbat(features)) return <Caption>Your role does not include ORBAT.</Caption>
+  const functionalities = useSessionStore((state) => state.session?.functionalities)
+  if (!canOpenOrbat(functionalities)) return <Caption>Your role does not include ORBAT.</Caption>
   return <OrbatPanel />
 }
 

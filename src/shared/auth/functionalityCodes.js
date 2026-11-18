@@ -1,8 +1,8 @@
-/** Development-time feature catalogue. Must match backend FeatureCodes.java */
-export const FeatureCodes = Object.freeze({
+/** Development-time functionality catalogue. Must match backend FunctionalityCodes.java */
+export const FunctionalityCodes = Object.freeze({
   MAP_VIEW: 'MAP_VIEW',
   MANAGE_THEMES: 'MANAGE_THEMES',
-  MANAGE_TEAMS: 'MANAGE_TEAMS',
+  MANAGE_SIDES: 'MANAGE_SIDES',
   MANAGE_NODE_TYPES: 'MANAGE_NODE_TYPES',
   MANAGE_ROLES: 'MANAGE_ROLES',
   MANAGE_USERS: 'MANAGE_USERS',
@@ -17,9 +17,9 @@ export const FeatureCodes = Object.freeze({
   CHOOSE_THEME: 'CHOOSE_THEME',
 })
 
-export const ALL_FEATURE_CODES = Object.freeze(Object.values(FeatureCodes))
+export const ALL_FUNCTIONALITY_CODES = Object.freeze(Object.values(FunctionalityCodes))
 
-export function hasFeature(features, code) {
-  if (!Array.isArray(features) || !code) return false
-  return features.includes(code)
+export function hasFunctionality(functionalities, code) {
+  if (!Array.isArray(functionalities) || !code) return false
+  return functionalities.includes(code)
 }

@@ -14,6 +14,7 @@ import {
   Typography,
 } from '@mui/material'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
+import NightlightOutlinedIcon from '@mui/icons-material/NightlightOutlined'
 import SportsEsportsOutlinedIcon from '@mui/icons-material/SportsEsportsOutlined'
 import { useSessionStore } from '../../features/session/useSessionStore'
 
@@ -150,6 +151,13 @@ export function ScenarioContext() {
             </Typography>
           </Fact>
         )}
+        {game?.moonphases ? (
+          <Fact label="Moonphases" icon={<NightlightOutlinedIcon fontSize="small" />}>
+            <Typography variant="body2" noWrap>
+              {game.moonphases}
+            </Typography>
+          </Fact>
+        ) : null}
       </Stack>
       <Dialog open={Boolean(pending)} onClose={close} fullWidth maxWidth="xs">
         <DialogTitle>{pending?.kind === 'game' ? 'Change the game' : 'Change the scenario'}</DialogTitle>

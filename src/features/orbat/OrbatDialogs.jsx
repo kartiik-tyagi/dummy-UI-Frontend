@@ -120,33 +120,33 @@ export function MarkAsUserDialog({ open, node, roles = EMPTY_LIST, onClose, onSu
   )
 }
 
-/** Picks the country team whose standard ORBAT is replicated into the scenario. */
-export function ReplicaDialog({ open, teams = EMPTY_LIST, onClose, onSubmit }) {
-  const [teamId, setTeamId] = useState('')
+/** Picks the country side whose standard ORBAT is replicated into the game. */
+export function ReplicaDialog({ open, sides = EMPTY_LIST, onClose, onSubmit }) {
+  const [sideId, setSideId] = useState('')
   const { busy, error, setError, run } = useSubmit(onSubmit)
   useEffect(() => {
     if (open) {
-      setTeamId(teams[0]?.id ?? '')
+      setSideId(sides[0]?.id ?? '')
       setError('')
     }
-  }, [open, teams, setError])
+  }, [open, sides, setError])
   return (
-    <Shell open={open} title="Replicate a standard ORBAT" submitLabel="Replicate" onClose={onClose} busy={busy} error={error} submitDisabled={teamId === ''} onSubmit={() => run(teamId)}>
-      {teams.length ? (
-        <TextField select required label="Team" value={teamId} onChange={(event) => setTeamId(event.target.value)}>
-          {teams.map((team) => (
-            <MenuItem key={team.id} value={team.id}>{team.name}</MenuItem>
+    <Shell open={open} title="Replicate a standard ORBAT" submitLabel="Replicate" onClose={onClose} busy={busy} error={error} submitDisabled={sideId === ''} onSubmit={() => run(sideId)}>
+      {sides.length ? (
+        <TextField select required label="Side" value={sideId} onChange={(event) => setSideId(event.target.value)}>
+          {sides.map((side) => (
+            <MenuItem key={side.id} value={side.id}>{side.name}</MenuItem>
           ))}
         </TextField>
       ) : (
-        <Typography variant="body2" color="text.secondary">Every country team already has a playing ORBAT in this scenario.</Typography>
+        <Typography variant="body2" color="text.secondary">Every country side already has a playing ORBAT in this game.</Typography>
       )}
     </Shell>
   )
 }
 
-/** Creates an alliance (a team of kind alliance) with its merged playing ORBAT. */
-export function AllianceDialog({ open, teams = EMPTY_LIST, themes = EMPTY_LIST, onClose, onSubmit }) {
+/** Creates an alliance (a side of kind alliance) with its merged playing ORBAT. */
+export function AllianceDialog({ open, sides = EMPTY_LIST, themes = EMPTY_LIST, onClose, onSubmit }) {
   const [name, setName] = useState('')
   const [colour, setColour] = useState('#2f6fed')
   const [icon, setIcon] = useState('')
@@ -173,7 +173,7 @@ export function AllianceDialog({ open, teams = EMPTY_LIST, themes = EMPTY_LIST, 
       busy={busy}
       error={error}
       submitDisabled={!name.trim() || members.length < 1}
-      onSubmit={() => run({ name: name.trim(), colour, icon: icon || null, themeId: themeId === '' ? null : themeId, memberTeamIds: members })}
+      onSubmit={() => run({ name: name.trim(), colour, icon: icon || null, themeId: themeId === '' ? null : themeId, memberSideIds: members })}
     >
       <TextField autoFocus required label="Alliance name" value={name} onChange={(event) => setName(event.target.value)} />
       <TextField label="Map colour" type="color" value={colour} onChange={(event) => setColour(event.target.value)} />
@@ -187,9 +187,9 @@ export function AllianceDialog({ open, teams = EMPTY_LIST, themes = EMPTY_LIST, 
         </TextField>
       ) : null}
       <FormGroup>
-        <FormLabel component="legend" sx={{ fontSize: 13 }}>Member teams (each needs a standard ORBAT)</FormLabel>
-        {teams.map((team) => (
-          <FormControlLabel key={team.id} label={team.name} control={<Checkbox size="small" checked={members.includes(team.id)} onChange={() => toggle(team.id)} />} />
+        <FormLabel component="legend" sx={{ fontSize: 13 }}>Member sides (each needs a standard ORBAT)</FormLabel>
+        {sides.map((side) => (
+          <FormControlLabel key={side.id} label={side.name} control={<Checkbox size="small" checked={members.includes(side.id)} onChange={() => toggle(side.id)} />} />
         ))}
       </FormGroup>
     </Shell>

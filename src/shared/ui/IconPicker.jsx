@@ -16,7 +16,7 @@ import {
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined'
 import { useSessionStore } from '../../features/session/useSessionStore'
-import { FeatureCodes, hasFeature } from '../auth/featureCodes'
+import { FunctionalityCodes, hasFunctionality } from '../auth/functionalityCodes'
 import { get, http, httpBlob } from '../api/http'
 import { EMPTY_LIST } from '../lib/empty'
 
@@ -73,7 +73,7 @@ function directories(node, depth = 0, found = []) {
  * Uploading needs MANAGE_ICONS.
  */
 export function IconPicker({ open, value = '', onClose, onSelect }) {
-  const canUpload = useSessionStore((state) => hasFeature(state.session?.features, FeatureCodes.MANAGE_ICONS))
+  const canUpload = useSessionStore((state) => hasFunctionality(state.session?.functionalities, FunctionalityCodes.MANAGE_ICONS))
   const [tree, setTree] = useState(null)
   const [folder, setFolder] = useState('')
   const [chosen, setChosen] = useState(value)

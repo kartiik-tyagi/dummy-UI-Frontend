@@ -100,7 +100,7 @@ function addFeature(source, item, kind) {
   feature.set('color', item.color)
   feature.set('width', item.width)
   feature.set('opacity', item.opacity)
-  feature.set('teamId', item.teamId || '')
+  feature.set('sideId', item.sideId || '')
   source.addFeature(feature)
 }
 
@@ -167,7 +167,7 @@ export function MapWorkbench({ map }) {
   useEffect(() => {
     if (!map || !data?.marks) return undefined
     const source = new VectorSource()
-    const teamColor = (teamId) => data.teams.find((team) => team.id === teamId)?.color || data.marks.objective
+    const sideColor = (sideId) => data.sides.find((side) => side.id === sideId)?.color || data.marks.objective
     if (surface === 'planning') {
       const query = graphicQuery
       for (const graphic of data.graphics) {
@@ -191,14 +191,14 @@ export function MapWorkbench({ map }) {
       }
     } else {
       for (const feature of data.features) {
-        if (feature.featureType === 'unit' && !data.showTeams) continue
+        if (feature.featureType === 'unit' && !data.showSides) continue
         addFeature(
           source,
           {
             ...feature,
             collection: 'feature',
             label: feature.name,
-            color: teamColor(feature.teamId),
+            color: sideColor(feature.sideId),
             opacity: feature.featureType === 'zone' ? 0.25 : 0,
           },
           feature.featureType === 'unit' ? 'point' : 'area',

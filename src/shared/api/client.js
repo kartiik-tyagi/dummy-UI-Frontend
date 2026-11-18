@@ -81,7 +81,7 @@ const meSchema = z.object({
   userId: z.number(),
   name: z.string(),
   roleCodes: z.array(z.string()),
-  administeredTeamId: z.number().nullable(),
+  administeredSideId: z.number().nullable(),
   standardOrbatId: z.number().nullable(),
   standardNodeId: z.string().nullable(),
   playingOrbatId: z.number().nullable(),
@@ -100,7 +100,7 @@ const sessionSchema = z.object({
   selectedScenarioId: z.string(),
   activeScenarioId: z.string(),
   activeGame: z.object({ id: z.string(), name: z.string() }),
-  games: z.array(z.object({ id: z.string(), name: z.string(), open: z.boolean(), scenarioId: z.string().optional(), active: z.boolean().optional(), status: z.string().optional() })),
+  games: z.array(z.object({ id: z.string(), name: z.string(), open: z.boolean(), scenarioId: z.string().optional(), active: z.boolean().optional(), status: z.string().optional(), moonphases: z.string().optional() })),
   navigation: z
     .array(
       z.object({
@@ -136,14 +136,14 @@ const sessionSchema = z.object({
   exerciseTitle: z.string(),
   classification: z.string(),
   demoMode: z.boolean(),
-  features: z.array(z.string()),
+  functionalities: z.array(z.string()),
   me: meSchema,
 })
 
 function staticLoginContext() {
   return {
-    exerciseTitle: 'Exercise Jayant',
-    systemName: 'JAYANT',
+    exerciseTitle: 'Exercise GIS Warplan',
+    systemName: 'GIS WARPLAN',
     classification: 'EXERCISE',
     purpose: 'Situation picture',
     accessNotice: 'Authorised users only',
@@ -179,7 +179,7 @@ function validate(session) {
     logger.error('session.invalid', { issues: parsed.error.issues.slice(0, 3).map((issue) => `${issue.path.join('.')}: ${issue.message}`) })
     throw new ApiError('The user profile could not be read.', 'VALIDATION')
   }
-  setIdentity({ userId: parsed.data.profile.id, features: parsed.data.features })
+  setIdentity({ userId: parsed.data.profile.id, functionalities: parsed.data.functionalities })
   return parsed.data
 }
 
@@ -303,7 +303,7 @@ export {
   deleteGraphic,
   deleteRecording,
   deleteRole,
-  deleteTeam,
+  deleteSide,
   deleteUser,
   discardRecording,
   disconnectStream,
@@ -318,8 +318,8 @@ export {
   saveRecording,
   saveRole,
   saveRoute,
-  assignUserTeam,
-  saveTeam,
+  assignUserSide,
+  saveSide,
   saveUser,
   saveZone,
   seekReplay,

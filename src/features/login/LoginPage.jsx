@@ -32,7 +32,7 @@ export default function LoginPage() {
   const context = useQuery({ queryKey: ['login-context'], queryFn: getLoginContext })
 
   useEffect(() => {
-    document.title = 'Jayant'
+    document.title = 'GIS Warplan'
   }, [])
 
   useEffect(() => {
@@ -48,12 +48,12 @@ export default function LoginPage() {
     },
   })
 
-  if (context.isPending) return <LoadingState label="Opening Jayant" />
+  if (context.isPending) return <LoadingState label="Opening GIS Warplan" />
 
   if (context.isError) {
     return (
       <Box sx={{ p: 3, maxWidth: 560 }}>
-        <ErrorState title="Jayant is unavailable" message={context.error.message} onRetry={() => context.refetch()} />
+        <ErrorState title="GIS Warplan is unavailable" message={context.error.message} onRetry={() => context.refetch()} />
       </Box>
     )
   }

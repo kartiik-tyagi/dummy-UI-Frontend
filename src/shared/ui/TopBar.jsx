@@ -40,7 +40,7 @@ export function TopBar({ leading, trailing, menuOpen, onMenuOpenChange, floating
     >
       {leading}
       <Typography variant="subtitle2" sx={{ letterSpacing: '0.14em', px: 0.5, flexShrink: 0 }}>
-        JAYANT
+        GIS WARPLAN
       </Typography>
       <ViewModes mode={viewMode} onChange={onViewMode} />
       <Box sx={{ flex: 1, minWidth: 0, display: { xs: 'none', lg: 'flex' }, alignItems: 'center' }}>

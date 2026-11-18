@@ -1,5 +1,5 @@
 /**
- * Pure helpers over the ORBAT document: { nodes: [{ id, parentId, nodeTypeId, homeTeamId, name, ...extra }] }.
+ * Pure helpers over the ORBAT document: { nodes: [{ id, parentId, nodeTypeId, homeSideId, name, ...extra }] }.
  * Every function returns new arrays; extra node fields are preserved as sent.
  */
 
@@ -53,13 +53,13 @@ export function pathTo(nodes, id) {
   return path
 }
 
-export function addChild(nodes, parentId, { name, nodeTypeId = null, homeTeamId }) {
+export function addChild(nodes, parentId, { name, nodeTypeId = null, homeSideId }) {
   const parent = nodes.find((node) => node.id === parentId)
   const node = {
     id: newId(),
     parentId,
     nodeTypeId,
-    homeTeamId: parent?.homeTeamId ?? homeTeamId,
+    homeSideId: parent?.homeSideId ?? homeSideId,
     name: String(name).trim(),
   }
   return { nodes: [...nodes, node], node }

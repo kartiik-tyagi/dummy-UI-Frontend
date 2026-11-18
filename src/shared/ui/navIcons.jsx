@@ -32,7 +32,7 @@ const ICONS = {
   table: TableRowsOutlinedIcon,
   info: InfoOutlinedIcon,
   draw: GestureOutlinedIcon,
-  teams: GroupsOutlinedIcon,
+  sides: GroupsOutlinedIcon,
   settings: SettingsOutlinedIcon,
   plan: PentagonOutlinedIcon,
   alerts: NotificationsActiveOutlinedIcon,

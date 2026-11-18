@@ -1,5 +1,5 @@
-import { FeatureCodes, hasFeature } from '../auth/featureCodes'
-import { navigationForFeatures, sectionsForFeatures } from '../auth/access'
+import { FunctionalityCodes, hasFunctionality } from '../auth/functionalityCodes'
+import { navigationForFunctionalities, sectionsForFunctionalities } from '../auth/access'
 import { logger } from '../lib/logger'
 import { clockStart, mapFilters, mapService, mapView, phases, plannedCenters } from './fixtures'
 import { get } from './http'
@@ -19,28 +19,28 @@ async function soft(promise, fallback) {
   }
 }
 
-export function profileFromMe(me, teams) {
-  const team = teams.find((item) => item.id === me.administeredTeamId)
+export function profileFromMe(me, sides) {
+  const side = sides.find((item) => item.id === me.administeredSideId)
   const admin = (me.roleCodes || []).includes('ADMINISTRATOR')
   const roles = (me.roleCodes || []).map(roleLabel)
   return {
     id: String(me.userId),
     title: me.name,
     role: roles.join(', ') || 'User',
-    service: team?.name || (admin ? 'Exercise control' : ''),
+    service: side?.name || (admin ? 'Exercise control' : ''),
     avatarUrl: me.name === 'APEX' ? '/avatars/apex.svg' : '',
   }
 }
 
 /** Fetches everything the shell needs besides `me` and shapes it like the session schema. */
 export async function buildSession(me) {
-  const features = me.featureCodes || []
-  const canScenario = hasFeature(features, FeatureCodes.MANAGE_SCENARIO)
-  const canGame = hasFeature(features, FeatureCodes.MANAGE_GAME)
+  const functionalities = me.functionalityCodes || []
+  const canScenario = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_SCENARIO)
+  const canGame = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_GAME)
 
-  const [themeRows, teams, scenarioRows] = await Promise.all([
+  const [themeRows, sides, scenarioRows] = await Promise.all([
     soft(get('/themes'), []),
-    soft(get('/teams'), []),
+    soft(get('/sides'), []),
     canScenario || canGame ? soft(get('/scenarios'), []) : Promise.resolve([]),
   ])
 
@@ -52,7 +52,7 @@ export async function buildSession(me) {
   const themes = themeRows.map(themeFromEntity)
   const chosen =
     themes.find((item) => item.id === String(me.themeId)) || themes.find((item) => item.defaultTheme) || themes[0] || paletteFallback()
-  const canSelectTheme = hasFeature(features, FeatureCodes.CHOOSE_THEME)
+  const canSelectTheme = hasFunctionality(functionalities, FunctionalityCodes.CHOOSE_THEME)
 
   const scenarios = scenarioRows.map((row) => ({ id: String(row.id), name: row.name, active: Boolean(row.active) }))
   const activeScenario = scenarios.find((item) => item.active)
@@ -63,11 +63,12 @@ export async function buildSession(me) {
     scenarioId: String(row.scenarioId),
     active: Boolean(row.active),
     status: row.status || '',
+    moonphases: row.moonphases || '',
   }))
   const activeGame = games.find((item) => item.active)
 
   return {
-    profile: profileFromMe(me, teams),
+    profile: profileFromMe(me, sides),
     theme: chosen,
     themes: canSelectTheme && themes.length ? themes : [chosen],
     canSelectTheme,
@@ -76,8 +77,8 @@ export async function buildSession(me) {
     activeScenarioId: activeScenario?.id || '',
     activeGame: { id: activeGame?.id || '', name: activeGame?.name || '' },
     games,
-    navigation: navigationForFeatures(features),
-    sections: sectionsForFeatures(features),
+    navigation: navigationForFunctionalities(functionalities),
+    sections: sectionsForFunctionalities(functionalities),
     resources: [],
     plans: [],
     // Map chrome placeholders only: the map service is not part of this API yet.
@@ -98,15 +99,15 @@ export async function buildSession(me) {
     plannedCenters,
     mapService,
     clockStart,
-    exerciseTitle: 'Exercise Jayant',
+    exerciseTitle: 'Exercise GIS Warplan',
     classification: 'EXERCISE',
     demoMode: false,
-    features: [...features],
+    functionalities: [...functionalities],
     me: {
       userId: me.userId,
       name: me.name,
       roleCodes: me.roleCodes || [],
-      administeredTeamId: me.administeredTeamId ?? null,
+      administeredSideId: me.administeredSideId ?? null,
       standardOrbatId: me.standardOrbatId ?? null,
       standardNodeId: me.standardNodeId ?? null,
       playingOrbatId: me.playingOrbatId ?? null,

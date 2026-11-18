@@ -18,7 +18,7 @@ export function EntityDialog() {
             <Typography variant="body2">Type {feature.featureType}</Typography>
             <Typography variant="body2">Layer {feature.layerId}</Typography>
             <Typography variant="body2">Geometry {feature.geometry?.type}</Typography>
-            <Typography variant="body2">Team {data.teams.find((team) => team.id === feature.teamId)?.name || 'None'}</Typography>
+            <Typography variant="body2">Side {data.sides.find((side) => side.id === feature.sideId)?.name || 'None'}</Typography>
           </>
         ) : null}
         {graphic ? (

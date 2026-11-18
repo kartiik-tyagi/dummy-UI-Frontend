@@ -1,10 +1,10 @@
 import { logger } from '../lib/logger'
 import { loginPalette, paletteById, palettes } from '../theme/palettes'
 
-let teamThemeId = () => null
+let sideThemeId = () => null
 
-export function registerTeamThemes(lookup) {
-  teamThemeId = lookup
+export function registerSideThemes(lookup) {
+  sideThemeId = lookup
 }
 
 function themeFor(user) {
@@ -15,10 +15,10 @@ function themeFor(user) {
     logger.warn('theme.unassigned', { userId: user.id, themeId: user.themeId || null })
     return fallback
   }
-  const themeId = user.teamId ? teamThemeId(user.teamId) : null
+  const themeId = user.sideId ? sideThemeId(user.sideId) : null
   const theme = paletteById(themeId)
   if (theme) return theme
-  logger.warn('theme.unassigned', { userId: user.id, teamId: user.teamId || null, themeId: themeId || null })
+  logger.warn('theme.unassigned', { userId: user.id, sideId: user.sideId || null, themeId: themeId || null })
   return fallback
 }
 
@@ -139,20 +139,20 @@ export function accessFor(userId) {
 }
 
 export function listDirectoryUsers() {
-  return users.map(({ id, title, role, service, avatarUrl, teamId }) => ({
+  return users.map(({ id, title, role, service, avatarUrl, sideId }) => ({
     id,
     title,
     role,
     service,
     avatarUrl,
-    teamId: teamId || null,
+    sideId: sideId || null,
   }))
 }
 
 export function appointmentRecord(userId) {
   const user = users.find((item) => item.id === userId)
   if (!user) return null
-  return { id: user.id, themeId: user.themeId || null, teamId: user.teamId || null }
+  return { id: user.id, themeId: user.themeId || null, sideId: user.sideId || null }
 }
 
 export function setAppointmentTheme(userId, themeId) {
@@ -167,23 +167,23 @@ export function setAppointmentTheme(userId, themeId) {
   return true
 }
 
-export function setAppointmentTeam(id, teamId) {
+export function setAppointmentSide(id, sideId) {
   const user = users.find((item) => item.id === id)
   if (!user) return 'MISSING'
   if (user.id === 'apex') return 'PROTECTED'
-  user.teamId = teamId
+  user.sideId = sideId
   return 'OK'
 }
 
 export function addDirectoryUser(user) {
-  if (!user?.id || !user.teamId || users.some((item) => item.id === user.id)) return false
+  if (!user?.id || !user.sideId || users.some((item) => item.id === user.id)) return false
   users.push({
     id: user.id,
     title: user.title,
     role: user.role,
     service: user.service,
     avatarUrl: '/avatars/corps.svg',
-    teamId: user.teamId,
+    sideId: user.sideId,
     grant: 'theatre',
   })
   return true
@@ -208,13 +208,13 @@ export function removeDirectoryUser(id) {
 
 const users = [
   { id: 'apex', title: 'APEX', role: 'Exercise control', service: 'Control', avatarUrl: '/avatars/apex.svg', themeId: 'watch-night', grant: 'apex' },
-  { id: 'cosc', title: 'CoSC', role: 'Joint direction', service: 'Joint', avatarUrl: '/avatars/cosc.svg', teamId: 'blue', grant: 'direction' },
-  { id: 'etc', title: 'Eastern Theatre Commander', role: 'Theatre picture', service: 'Joint', avatarUrl: '/avatars/east.svg', teamId: 'blue', grant: 'theatre' },
-  { id: 'wtc', title: 'Western Theatre Commander', role: 'Theatre picture', service: 'Joint', avatarUrl: '/avatars/west.svg', teamId: 'blue', grant: 'theatre' },
-  { id: 'ntc', title: 'Northern Theatre Commander', role: 'Theatre picture', service: 'Joint', avatarUrl: '/avatars/north.svg', teamId: 'blue', grant: 'theatre' },
-  { id: 'esc', title: 'Eastern Strike Corps Commander', role: 'Corps picture', service: 'Army', avatarUrl: '/avatars/corps.svg', teamId: 'blue', grant: 'theatre' },
-  { id: 'aoc', title: 'Eastern Air Command AoC', role: 'Air picture', service: 'Air', avatarUrl: '/avatars/air.svg', teamId: 'red', grant: 'air' },
-  { id: 'foc', title: 'Western Naval Command FoC', role: 'Maritime picture', service: 'Navy', avatarUrl: '/avatars/navy.svg', teamId: 'red', grant: 'maritime' },
+  { id: 'cosc', title: 'CoSC', role: 'Joint direction', service: 'Joint', avatarUrl: '/avatars/cosc.svg', sideId: 'blue', grant: 'direction' },
+  { id: 'etc', title: 'Eastern Theatre Commander', role: 'Theatre picture', service: 'Joint', avatarUrl: '/avatars/east.svg', sideId: 'blue', grant: 'theatre' },
+  { id: 'wtc', title: 'Western Theatre Commander', role: 'Theatre picture', service: 'Joint', avatarUrl: '/avatars/west.svg', sideId: 'blue', grant: 'theatre' },
+  { id: 'ntc', title: 'Northern Theatre Commander', role: 'Theatre picture', service: 'Joint', avatarUrl: '/avatars/north.svg', sideId: 'blue', grant: 'theatre' },
+  { id: 'esc', title: 'Eastern Strike Corps Commander', role: 'Corps picture', service: 'Army', avatarUrl: '/avatars/corps.svg', sideId: 'blue', grant: 'theatre' },
+  { id: 'aoc', title: 'Eastern Air Command AoC', role: 'Air picture', service: 'Air', avatarUrl: '/avatars/air.svg', sideId: 'red', grant: 'air' },
+  { id: 'foc', title: 'Western Naval Command FoC', role: 'Maritime picture', service: 'Navy', avatarUrl: '/avatars/navy.svg', sideId: 'red', grant: 'maritime' },
 ]
 
 try {
@@ -328,8 +328,8 @@ export const sections = [
 export const clockStart = '2026-10-28T06:00:00'
 
 const exerciseMeta = {
-  exerciseTitle: 'Exercise Jayant',
-  systemName: 'JAYANT',
+  exerciseTitle: 'Exercise GIS Warplan',
+  systemName: 'GIS WARPLAN',
   classification: 'EXERCISE',
   purpose: 'Situation picture',
   accessNotice: 'Authorised users only',

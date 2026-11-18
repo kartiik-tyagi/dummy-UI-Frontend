@@ -10,7 +10,7 @@ const TITLES = {
   features: 'Features',
   properties: 'Properties',
   draw: 'Draw and measure',
-  teams: 'Teams',
+  sides: 'Sides',
   'map-settings': 'Map settings',
   planning: 'Planning board',
   alerts: 'Alerts',
@@ -20,7 +20,7 @@ const TITLES = {
   stream: 'Live stream',
   zones: 'Zones',
   routes: 'Routes',
-  directory: 'Users and teams',
+  directory: 'Users and sides',
   orbat: 'ORBAT',
   flags: 'Features',
 }

@@ -1,11 +1,11 @@
-import { FeatureCodes, hasFeature } from '../auth/featureCodes'
+import { FunctionalityCodes, hasFunctionality } from '../auth/functionalityCodes'
 import { hasAny } from '../auth/access'
 import { logger } from '../lib/logger'
 import { swatchById, swatches } from '../theme/swatches'
 import { ApiError } from './errors'
 import { currentSnapshot, getIdentity, setRemote } from './directoryRemote'
 import { del, get, patch, post, put } from './http'
-import { numericId, roleFromEntity, teamFromEntity, themeFromEntity, userFromEntity } from './mappers'
+import { numericId, roleFromEntity, sideFromEntity, themeFromEntity, userFromEntity } from './mappers'
 import { setToken } from './tokenStore'
 
 /** A read the signed-in user may not be allowed; the workbench still opens without it. */
@@ -19,12 +19,12 @@ async function soft(promise, fallback) {
   }
 }
 
-function featuresOf(userId) {
+function functionalitiesOf(userId) {
   const identity = getIdentity()
   if (!identity || identity.userId !== userId) {
     throw new ApiError('This session is no longer valid.', 'SESSION')
   }
-  return identity.features
+  return identity.functionalities
 }
 
 function requireName(value, message) {
@@ -33,38 +33,38 @@ function requireName(value, message) {
   return text
 }
 
-/** Loads users, teams, roles, features and themes the caller may see, and returns the full workbench snapshot. */
+/** Loads users, sides, roles, functionalities and themes the caller may see, and returns the full workbench snapshot. */
 export async function loadWorkbench(userId) {
-  const features = featuresOf(userId)
-  const canUsers = hasFeature(features, FeatureCodes.MANAGE_USERS)
-  const canRoles = hasAny(features, FeatureCodes.MANAGE_ROLES, FeatureCodes.MANAGE_USERS, FeatureCodes.MARK_AS_USER)
-  const canFeatures = hasFeature(features, FeatureCodes.MANAGE_ROLES)
+  const functionalities = functionalitiesOf(userId)
+  const canUsers = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_USERS)
+  const canRoles = hasAny(functionalities, FunctionalityCodes.MANAGE_ROLES, FunctionalityCodes.MANAGE_USERS, FunctionalityCodes.MARK_AS_USER)
+  const canFunctionalities = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_ROLES)
 
-  const [teamRows, themeRows, roleRows, userRows, featureRows] = await Promise.all([
-    soft(get('/teams'), []),
+  const [sideRows, themeRows, roleRows, userRows, functionalityRows] = await Promise.all([
+    soft(get('/sides'), []),
     soft(get('/themes'), []),
     canRoles ? soft(get('/roles'), []) : Promise.resolve([]),
     canUsers ? soft(get('/users'), []) : Promise.resolve([]),
-    canFeatures ? soft(get('/features'), []) : Promise.resolve([]),
+    canFunctionalities ? soft(get('/functionalities'), []) : Promise.resolve([]),
   ])
 
-  const teams = teamRows.map(teamFromEntity)
+  const sides = sideRows.map(sideFromEntity)
   const roles = roleRows.map(roleFromEntity)
   const users = userRows.map((row) =>
-    userFromEntity(row, { roles: roleRows, teams: teamRows }),
+    userFromEntity(row, { roles: roleRows, sides: sideRows }),
   ).map((user) => ({ ...user, protected: user.name === 'APEX' }))
 
   setRemote({
     users,
-    teams,
+    sides,
     roles,
     directoryThemes: themeRows.map(themeFromEntity),
     themeChoices: themeRows.map((row) => ({ id: String(row.id), name: row.name, takenBy: null })),
     swatches: swatches.map((item) => ({ ...item, takenBy: null })),
-    featureCatalog: featureRows.map((row) => ({ id: row.id, code: row.code, name: row.name, description: row.description || '' })),
-    access: [...features],
+    functionalityCatalog: functionalityRows.map((row) => ({ id: row.id, code: row.code, name: row.name, description: row.description || '' })),
+    access: [...functionalities],
   })
-  logger.info('workbench.loaded', { userId, users: users.length, teams: teams.length, roles: roles.length })
+  logger.info('workbench.loaded', { userId, users: users.length, sides: sides.length, roles: roles.length })
   return currentSnapshot(userId)
 }
 
@@ -73,7 +73,7 @@ async function after(userId, event, fields) {
   return loadWorkbench(userId)
 }
 
-function teamBody(draft, current) {
+function sideBody(draft, current) {
   const name = requireName(draft?.name ?? current?.name, 'Enter a name.')
   const swatch = swatchById(draft?.swatchId)
   const colour = swatch?.color || draft?.colour || current?.colour || null
@@ -89,29 +89,29 @@ function teamBody(draft, current) {
 }
 
 function findRemote(key, id, userId) {
-  featuresOf(userId)
+  functionalitiesOf(userId)
   return currentSnapshot(userId)[key]?.find((item) => item.id === String(id)) || null
 }
 
-export async function saveTeam(userId, draft) {
-  featuresOf(userId)
+export async function saveSide(userId, draft) {
+  functionalitiesOf(userId)
   if (draft?.id) {
-    const current = findRemote('teams', draft.id, userId)
-    await put(`/teams/${numericId(draft.id)}`, teamBody(draft, current))
-    return after(userId, 'team.saved', { teamId: draft.id })
+    const current = findRemote('sides', draft.id, userId)
+    await put(`/sides/${numericId(draft.id)}`, sideBody(draft, current))
+    return after(userId, 'side.saved', { sideId: draft.id })
   }
-  const created = await post('/teams', teamBody(draft, null))
-  return after(userId, 'team.saved', { teamId: created?.id })
+  const created = await post('/sides', sideBody(draft, null))
+  return after(userId, 'side.saved', { sideId: created?.id })
 }
 
-export async function deleteTeam(userId, teamId) {
-  featuresOf(userId)
-  await del(`/teams/${numericId(teamId)}`)
-  return after(userId, 'team.deleted', { teamId })
+export async function deleteSide(userId, sideId) {
+  functionalitiesOf(userId)
+  await del(`/sides/${numericId(sideId)}`)
+  return after(userId, 'side.deleted', { sideId })
 }
 
 export async function saveRole(userId, draft) {
-  featuresOf(userId)
+  functionalitiesOf(userId)
   const name = requireName(draft?.name, 'Enter a name.')
   if (draft?.id) {
     const current = findRemote('roles', draft.id, userId)
@@ -119,7 +119,7 @@ export async function saveRole(userId, draft) {
       code: draft.code || current?.code,
       name,
       description: draft.description ?? current?.description ?? '',
-      featureIds: draft.featureIds ?? current?.featureIds ?? [],
+      functionalityIds: draft.functionalityIds ?? current?.functionalityIds ?? [],
     })
     return after(userId, 'role.saved', { roleId: draft.id })
   }
@@ -127,12 +127,12 @@ export async function saveRole(userId, draft) {
   if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(code)) {
     throw new ApiError('Use a role code of letters, digits and underscores, starting with a letter.', 'VALIDATION')
   }
-  await post('/roles', { code, name, description: draft?.description || '', featureIds: draft?.featureIds || [] })
+  await post('/roles', { code, name, description: draft?.description || '', functionalityIds: draft?.functionalityIds || [] })
   return after(userId, 'role.saved', { code })
 }
 
 export async function deleteRole(userId, roleId) {
-  featuresOf(userId)
+  functionalitiesOf(userId)
   await del(`/roles/${numericId(roleId)}`)
   return after(userId, 'role.deleted', { roleId })
 }
@@ -142,7 +142,7 @@ export async function deleteRole(userId, roleId) {
  * Existing users can be renamed, given roles, activated or deactivated, or have their password reset.
  */
 export async function saveUser(userId, draft) {
-  featuresOf(userId)
+  functionalitiesOf(userId)
   if (!draft?.id) {
     throw new ApiError('Users are created from an ORBAT node. Open ORBAT and choose Mark as user.', 'VALIDATION')
   }
@@ -152,7 +152,7 @@ export async function saveUser(userId, draft) {
   if (draft.password) body.password = draft.password
   if (Array.isArray(draft.roleIds)) body.roleIds = draft.roleIds.map(numericId).filter((id) => id !== null)
   if (typeof draft.active === 'boolean') body.active = draft.active
-  if (draft.teamId) body.administeredTeamId = numericId(draft.teamId)
+  if (draft.sideId) body.administeredSideId = numericId(draft.sideId)
   if (!Object.keys(body).length) throw new ApiError('Nothing was changed.', 'VALIDATION')
   await patch(`/users/${numericId(draft.id)}`, body)
   return after(userId, 'user.saved', { id: draft.id })
@@ -160,18 +160,18 @@ export async function saveUser(userId, draft) {
 
 /** The backend has no delete for users; removing one deactivates it (and ends its sessions). */
 export async function deleteUser(userId, targetId) {
-  featuresOf(userId)
+  functionalitiesOf(userId)
   await patch(`/users/${numericId(targetId)}`, { active: false })
   return after(userId, 'user.deactivated', { targetId })
 }
 
-/** Appoints the team a user administers. */
-export async function assignUserTeam(userId, targetId, teamId) {
-  featuresOf(userId)
-  const id = numericId(teamId)
-  if (id === null) throw new ApiError('Choose a team.', 'VALIDATION')
-  await patch(`/users/${numericId(targetId)}`, { administeredTeamId: id })
-  return after(userId, 'user.team_assigned', { targetId, teamId })
+/** Appoints the side a user administers. */
+export async function assignUserSide(userId, targetId, sideId) {
+  functionalitiesOf(userId)
+  const id = numericId(sideId)
+  if (id === null) throw new ApiError('Choose a side.', 'VALIDATION')
+  await patch(`/users/${numericId(targetId)}`, { administeredSideId: id })
+  return after(userId, 'user.side_assigned', { targetId, sideId })
 }
 
 /**
@@ -179,10 +179,10 @@ export async function assignUserTeam(userId, targetId, teamId) {
  * with it; the old sessions end with the change, so a fresh sign-in keeps this one alive.
  */
 export async function updatePassword(userId, currentPassword, nextPassword) {
-  const features = featuresOf(userId)
+  const functionalities = functionalitiesOf(userId)
   if (!nextPassword || nextPassword.length < 3) throw new ApiError('Use at least 3 characters.', 'VALIDATION')
   if (nextPassword === currentPassword) throw new ApiError('Choose a different password.', 'VALIDATION')
-  if (!hasFeature(features, FeatureCodes.MANAGE_USERS)) {
+  if (!hasFunctionality(functionalities, FunctionalityCodes.MANAGE_USERS)) {
     throw new ApiError('Ask an administrator to change your password.', 'FORBIDDEN')
   }
   const name = (await get('/auth/me')).name

@@ -63,24 +63,24 @@ export function swatchForColour(colour) {
   return swatches.find((item) => normal(item.color) === wanted) || null
 }
 
-export function teamFromEntity(team) {
-  const swatch = swatchForColour(team.colour)
+export function sideFromEntity(side) {
+  const swatch = swatchForColour(side.colour)
   return {
-    id: String(team.id),
-    name: team.name,
-    kind: team.kind || 'country',
-    description: team.description || '',
-    icon: team.icon || '',
-    colour: team.colour || '',
-    color: team.colour || '',
+    id: String(side.id),
+    name: side.name,
+    kind: side.kind || 'country',
+    description: side.description || '',
+    icon: side.icon || '',
+    colour: side.colour || '',
+    color: side.colour || '',
     swatchId: swatch?.id || '',
-    themeId: team.themeId == null ? '' : String(team.themeId),
+    themeId: side.themeId == null ? '' : String(side.themeId),
   }
 }
 
-export function userFromEntity(user, { roles = [], teams = [] } = {}) {
+export function userFromEntity(user, { roles = [], sides = [] } = {}) {
   const names = (user.roleIds || []).map((id) => roles.find((role) => role.id === id)?.name).filter(Boolean)
-  const team = teams.find((item) => item.id === user.administeredTeamId)
+  const side = sides.find((item) => item.id === user.administeredSideId)
   return {
     id: String(user.id),
     numericId: user.id,
@@ -88,9 +88,9 @@ export function userFromEntity(user, { roles = [], teams = [] } = {}) {
     title: user.name,
     role: names.join(', '),
     roleIds: user.roleIds || [],
-    service: team?.name || '',
+    service: side?.name || '',
     avatarUrl: '',
-    teamId: user.administeredTeamId == null ? null : String(user.administeredTeamId),
+    sideId: user.administeredSideId == null ? null : String(user.administeredSideId),
     active: user.active !== false,
     themeId: user.themeId == null ? '' : String(user.themeId),
     standardOrbatId: user.standardOrbatId ?? null,
@@ -107,7 +107,7 @@ export function roleFromEntity(role) {
     code: role.code,
     name: role.name,
     description: role.description || '',
-    featureIds: role.featureIds || [],
+    functionalityIds: role.functionalityIds || [],
   }
 }
 

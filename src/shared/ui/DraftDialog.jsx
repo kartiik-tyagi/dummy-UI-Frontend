@@ -7,15 +7,15 @@ import { useCommit, useDirectoryStore } from '../../features/directory/useDirect
 export function DraftDialog() {
   const pending = useDirectoryStore((state) => state.pending)
   const setPending = useDirectoryStore((state) => state.setPending)
-  const teams = useDirectoryStore((state) => state.data?.teams ?? EMPTY_LIST)
+  const sides = useDirectoryStore((state) => state.data?.sides ?? EMPTY_LIST)
   const commit = useCommit()
   const [name, setName] = useState('')
-  const [teamId, setTeamId] = useState('')
+  const [sideId, setSideId] = useState('')
 
   useEffect(() => {
     if (pending) {
       setName('')
-      setTeamId('')
+      setSideId('')
     }
   }, [pending])
 
@@ -25,7 +25,7 @@ export function DraftDialog() {
         ? (userId) =>
             api.createGraphic(userId, {
               name,
-              teamId,
+              sideId,
               shapeType: pending.shapeType,
               geometry: pending.geometry,
               stampId: pending.stampId,
@@ -34,7 +34,7 @@ export function DraftDialog() {
         : (userId) =>
             api.createFeature(userId, {
               name,
-              teamId,
+              sideId,
               featureType: pending.featureType,
               geometry: pending.geometry,
               curved: pending.curved,
@@ -49,11 +49,11 @@ export function DraftDialog() {
       <DialogTitle>{pending?.surface === 'planning' ? 'Keep this graphic' : 'Keep this feature'}</DialogTitle>
       <DialogContent>
         <TextField fullWidth margin="dense" label="Name" value={name} onChange={(event) => setName(event.target.value)} />
-        <TextField select fullWidth margin="dense" label="Team" value={teamId} onChange={(event) => setTeamId(event.target.value)}>
+        <TextField select fullWidth margin="dense" label="Side" value={sideId} onChange={(event) => setSideId(event.target.value)}>
           <MenuItem value="">None</MenuItem>
-          {teams.map((team) => (
-            <MenuItem key={team.id} value={team.id}>
-              {team.name}
+          {sides.map((side) => (
+            <MenuItem key={side.id} value={side.id}>
+              {side.name}
             </MenuItem>
           ))}
         </TextField>

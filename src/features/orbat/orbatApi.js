@@ -1,38 +1,40 @@
 import { del, get, post, put } from '../../shared/api/http'
 
-export const listTeams = () => get('/teams')
+export const listSides = () => get('/sides')
 export const listNodeTypes = () => get('/node-types')
 export const listRoles = () => get('/roles')
 export const listUsers = () => get('/users')
 export const listScenarios = () => get('/scenarios')
+export const listGames = (scenarioId) => get(`/scenarios/${scenarioId}/games`)
 
-/** null when the team has no standard ORBAT yet. */
-export async function getStandardOrbat(teamId) {
+/** null when the side has no standard ORBAT yet. */
+export async function getStandardOrbat(sideId) {
   try {
-    return await get(`/teams/${teamId}/standard-orbat`)
+    return await get(`/sides/${sideId}/standard-orbat`)
   } catch (error) {
     if (error?.status === 404 || error?.code === 'NOT_FOUND') return null
     throw error
   }
 }
 
-export const createStandardOrbat = (teamId) => post(`/teams/${teamId}/standard-orbat`)
+export const createStandardOrbat = (sideId) => post(`/sides/${sideId}/standard-orbat`)
 
-export const saveStandardOrbat = (teamId, { orbatJson, metadata, version }) =>
-  put(`/teams/${teamId}/standard-orbat`, { orbatJson, metadata, version })
+export const saveStandardOrbat = (sideId, { orbatJson, metadata, version }) =>
+  put(`/sides/${sideId}/standard-orbat`, { orbatJson, metadata, version })
 
-export const listPlayingOrbats = (scenarioId) => get(`/scenarios/${scenarioId}/playing-orbats`)
+// Playing ORBATs and alliances belong to a game.
+export const listPlayingOrbats = (gameId) => get(`/games/${gameId}/playing-orbats`)
 
-export const replicatePlayingOrbat = (scenarioId, teamId) =>
-  post(`/scenarios/${scenarioId}/playing-orbats/replica`, { teamId })
+export const replicatePlayingOrbat = (gameId, sideId) =>
+  post(`/games/${gameId}/playing-orbats/replica`, { sideId })
 
-export const savePlayingOrbat = (id, { orbatJson, metadata, version }) =>
-  put(`/playing-orbats/${id}`, { orbatJson, metadata, version })
+export const savePlayingOrbat = (gameId, id, { orbatJson, metadata, version }) =>
+  put(`/games/${gameId}/playing-orbats/${id}`, { orbatJson, metadata, version })
 
-export const deletePlayingOrbat = (id) => del(`/playing-orbats/${id}`)
+export const deletePlayingOrbat = (gameId, id) => del(`/games/${gameId}/playing-orbats/${id}`)
 
-export const listAlliances = (scenarioId) => get(`/scenarios/${scenarioId}/alliances`)
+export const listAlliances = (gameId) => get(`/games/${gameId}/alliances`)
 
-export const createAlliance = (scenarioId, body) => post(`/scenarios/${scenarioId}/alliances`, body)
+export const createAlliance = (gameId, body) => post(`/games/${gameId}/alliances`, body)
 
 export const markAsUser = (body) => post('/users/mark-from-node', body)

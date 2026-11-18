@@ -1,37 +1,37 @@
-import { FeatureCodes, hasFeature } from '../auth/featureCodes'
+import { FunctionalityCodes, hasFunctionality } from '../auth/functionalityCodes'
 import { canOpenDirectory, canOpenOrbat, isAdminLike } from '../auth/access'
 import { logger } from '../lib/logger'
 import { palettes } from '../theme/palettes'
 import { marks, swatchById, swatches } from '../theme/swatches'
 import { getIdentity, getRemote, registerSnapshot } from './directoryRemote'
 import { ApiError } from './errors'
-import { listDirectoryUsers, mapService, osmService, registerTeamThemes } from './fixtures'
+import { listDirectoryUsers, mapService, osmService, registerSideThemes } from './fixtures'
 
-// Users, teams, roles and their administration are real (HTTP). Everything else in this file (map features,
+// Users, sides, roles and their administration are real (HTTP). Everything else in this file (map features,
 // planning, replay, simulation, stream, flags) is still the in-memory stand-in until those APIs exist.
 export {
-  assignUserTeam,
+  assignUserSide,
   deleteRole,
-  deleteTeam,
+  deleteSide,
   deleteUser,
   loadWorkbench,
   saveRole,
-  saveTeam,
+  saveSide,
   saveUser,
   updatePassword,
 } from './directoryApi'
 
-/** What the signed-in user may do, derived from the backend feature codes. */
+/** What the signed-in user may do, derived from the backend functionality codes. */
 function accessFor(userId) {
   const identity = getIdentity()
   if (!identity || identity.userId !== userId) return null
-  const features = identity.features
+  const functionalities = identity.functionalities
   return {
     userId,
-    features,
-    admin: isAdminLike(features),
-    canControlGame: hasFeature(features, FeatureCodes.MANAGE_GAME),
-    canSelectScenario: hasFeature(features, FeatureCodes.MANAGE_SCENARIO),
+    functionalities,
+    admin: isAdminLike(functionalities),
+    canControlGame: hasFunctionality(functionalities, FunctionalityCodes.MANAGE_GAME),
+    canSelectScenario: hasFunctionality(functionalities, FunctionalityCodes.MANAGE_SCENARIO),
   }
 }
 
@@ -41,7 +41,7 @@ const FLAG_LIST = [
   { key: 'propertiesPanel', label: 'Properties', group: 'Map' },
   { key: 'drawingTools', label: 'Drawing', group: 'Map' },
   { key: 'measurementTools', label: 'Measure', group: 'Map' },
-  { key: 'teamMapIcons', label: 'Team markers', group: 'Map' },
+  { key: 'sideMapIcons', label: 'Side markers', group: 'Map' },
   { key: 'mapSettings', label: 'Map settings', group: 'Map' },
   { key: 'planningCanvas', label: 'Planning board', group: 'Plan' },
   { key: 'planningExport', label: 'Plan export', group: 'Plan' },
@@ -58,18 +58,18 @@ const FLAG_LIST = [
   { key: 'statusBadge', label: 'Live status', group: 'Exercise' },
   { key: 'zonesAdmin', label: 'Zones catalogue', group: 'Administration' },
   { key: 'routesAdmin', label: 'Routes catalogue', group: 'Administration' },
-  { key: 'adminPanel', label: 'Users, teams, and roles', group: 'Administration' },
+  { key: 'adminPanel', label: 'Users, sides, and roles', group: 'Administration' },
   { key: 'demoMode', label: 'Demo badge', group: 'Administration' },
 ]
 
 const flags = Object.fromEntries(FLAG_LIST.map((item) => [item.key, true]))
 
-const teams = [
+const sides = [
   { id: 'blue', name: 'Blue force', swatchId: 'blue', themeId: 'field-night', icon: 'shield' },
   { id: 'red', name: 'Red force', swatchId: 'red', themeId: 'watch-night', icon: 'flag' },
 ]
 
-registerTeamThemes((teamId) => teams.find((item) => item.id === teamId)?.themeId || null)
+registerSideThemes((sideId) => sides.find((item) => item.id === sideId)?.themeId || null)
 
 const roles = [
   { id: 'control', name: 'Exercise control' },
@@ -80,11 +80,11 @@ const roles = [
 ]
 
 let features = [
-  { id: 'unit-1', name: 'Blue lead', featureType: 'unit', layerId: 'units', teamId: 'blue', geometry: { type: 'Point', coordinates: [80.2, 26.4] }, properties: {} },
-  { id: 'unit-2', name: 'Red contact', featureType: 'unit', layerId: 'units', teamId: 'red', geometry: { type: 'Point', coordinates: [83.1, 24.8] }, properties: {} },
-  { id: 'route-1', name: 'Northern road', featureType: 'route', layerId: 'routes', teamId: 'blue', geometry: { type: 'LineString', coordinates: [[80.2, 26.4], [81.5, 25.6], [82.4, 24.9]] }, properties: { curved: false } },
-  { id: 'zone-1', name: 'Holding area', featureType: 'zone', layerId: 'zones', teamId: 'blue', geometry: { type: 'Polygon', coordinates: [[[79.6, 26.8], [80.8, 26.8], [80.8, 25.9], [79.6, 25.9], [79.6, 26.8]]] }, properties: {} },
-  { id: 'zone-2', name: 'Contact box', featureType: 'zone', layerId: 'zones', teamId: 'red', geometry: { type: 'Polygon', coordinates: [[[83.5, 25.2], [84.3, 25.2], [84.3, 24.4], [83.5, 24.4], [83.5, 25.2]]] }, properties: {} },
+  { id: 'unit-1', name: 'Blue lead', featureType: 'unit', layerId: 'units', sideId: 'blue', geometry: { type: 'Point', coordinates: [80.2, 26.4] }, properties: {} },
+  { id: 'unit-2', name: 'Red contact', featureType: 'unit', layerId: 'units', sideId: 'red', geometry: { type: 'Point', coordinates: [83.1, 24.8] }, properties: {} },
+  { id: 'route-1', name: 'Northern road', featureType: 'route', layerId: 'routes', sideId: 'blue', geometry: { type: 'LineString', coordinates: [[80.2, 26.4], [81.5, 25.6], [82.4, 24.9]] }, properties: { curved: false } },
+  { id: 'zone-1', name: 'Holding area', featureType: 'zone', layerId: 'zones', sideId: 'blue', geometry: { type: 'Polygon', coordinates: [[[79.6, 26.8], [80.8, 26.8], [80.8, 25.9], [79.6, 25.9], [79.6, 26.8]]] }, properties: {} },
+  { id: 'zone-2', name: 'Contact box', featureType: 'zone', layerId: 'zones', sideId: 'red', geometry: { type: 'Polygon', coordinates: [[[83.5, 25.2], [84.3, 25.2], [84.3, 24.4], [83.5, 24.4], [83.5, 25.2]]] }, properties: {} },
 ]
 
 let graphics = [
@@ -93,7 +93,7 @@ let graphics = [
     name: 'Objective north',
     ownerId: 'apex',
     shapeType: 'rectangle',
-    teamId: 'blue',
+    sideId: 'blue',
     geometry: { type: 'Polygon', coordinates: [[[81.2, 26.2], [82.0, 26.2], [82.0, 25.6], [81.2, 25.6], [81.2, 26.2]]] },
     properties: {
       strokeColor: marks.objective,
@@ -193,7 +193,7 @@ function navigationFor(access) {
   if (flags.featureTable) map.push(item('features', 'Features', 'table'))
   if (flags.propertiesPanel) map.push(item('properties', 'Properties', 'info'))
   if (flags.drawingTools || flags.measurementTools) map.push(item('draw', 'Draw and measure', 'draw'))
-  if (flags.teamMapIcons) map.push(item('teams', 'Teams', 'teams'))
+  if (flags.sideMapIcons) map.push(item('sides', 'Sides', 'sides'))
   if (flags.mapSettings) map.push(item('map-settings', 'Map settings', 'settings'))
 
   const groups = [{ id: 'map', label: 'Map', items: map }]
@@ -212,8 +212,8 @@ function navigationFor(access) {
     const admin = []
     if (flags.zonesAdmin) admin.push(item('zones', 'Zones', 'zones'))
     if (flags.routesAdmin) admin.push(item('routes', 'Routes', 'routes'))
-    if (flags.adminPanel && canOpenDirectory(access.features)) admin.push(item('directory', 'Users and teams', 'directory'))
-    if (canOpenOrbat(access.features)) admin.push(item('orbat', 'ORBAT', 'orbat'))
+    if (flags.adminPanel && canOpenDirectory(access.functionalities)) admin.push(item('directory', 'Users and sides', 'directory'))
+    if (canOpenOrbat(access.functionalities)) admin.push(item('orbat', 'ORBAT', 'orbat'))
     admin.push(item('flags', 'Features', 'flags'))
     if (admin.length) groups.push({ id: 'admin', label: 'Administration', items: admin })
   }
@@ -251,7 +251,7 @@ function computeAlerts() {
       alerts.push({
         id,
         name: unit.name,
-        team: teams.find((team) => team.id === unit.teamId)?.name || 'Unassigned',
+        side: sides.find((side) => side.id === unit.sideId)?.name || 'Unassigned',
         zone: zone.name,
         since: announced.get(id) || Date.now(),
       })
@@ -287,7 +287,7 @@ function positions() {
     .filter((feature) => feature.featureType === 'unit')
     .map((feature) => {
       const point = featurePoint(feature)
-      return { id: feature.id, name: feature.name, teamId: feature.teamId, lon: point?.lon ?? 0, lat: point?.lat ?? 0 }
+      return { id: feature.id, name: feature.name, sideId: feature.sideId, lon: point?.lon ?? 0, lat: point?.lat ?? 0 }
     })
 }
 
@@ -317,24 +317,24 @@ export function snapshot(userId) {
     navigation: access ? navigationFor(access) : [],
     opacity: { ...opacity },
     features: clone(features),
-    teams: teams.map((team) => ({
-      id: team.id,
-      name: team.name,
-      icon: team.icon,
-      swatchId: team.swatchId,
-      themeId: team.themeId,
-      color: swatchById(team.swatchId)?.color || '',
+    sides: sides.map((side) => ({
+      id: side.id,
+      name: side.name,
+      icon: side.icon,
+      swatchId: side.swatchId,
+      themeId: side.themeId,
+      color: swatchById(side.swatchId)?.color || '',
     })),
     swatches: swatches.map((item) => ({
       id: item.id,
       name: item.name,
       color: item.color,
-      takenBy: teams.find((team) => team.swatchId === item.id)?.id || null,
+      takenBy: sides.find((side) => side.swatchId === item.id)?.id || null,
     })),
     themeChoices: palettes.map((item) => ({
       id: item.id,
       name: item.name,
-      takenBy: teams.find((team) => team.themeId === item.id)?.id || null,
+      takenBy: sides.find((side) => side.themeId === item.id)?.id || null,
     })),
     marks: { halo: marks.halo, outline: marks.outline, objective: marks.objective, replay: marks.replay },
     roles: clone(roles),
@@ -373,19 +373,19 @@ export function snapshot(userId) {
     flagList: FLAG_LIST.map((item) => ({ ...item, enabled: flags[item.key] })),
     settings: clone(settings),
     markers: positions(),
-    showTeams: flags.teamMapIcons,
+    showSides: flags.sideMapIcons,
   }
 
   if (!remote) return base
-  // Users, teams, roles, themes and swatches come from the backend once it has been read.
+  // Users, sides, roles, themes and swatches come from the backend once it has been read.
   return {
     ...base,
     users: remote.users,
-    teams: remote.teams,
+    sides: remote.sides,
     roles: remote.roles,
     swatches: remote.swatches,
     themeChoices: remote.themeChoices,
-    featureCatalog: remote.featureCatalog,
+    functionalityCatalog: remote.functionalityCatalog,
     directoryThemes: remote.directoryThemes,
     grants: remote.access,
   }
@@ -498,7 +498,7 @@ export function createFeature(userId, draft) {
   const featureType = draft?.featureType
   if (!['unit', 'route', 'zone'].includes(featureType)) fail('feature.rejected', { userId }, 'Choose a unit, a route, or a zone.', 'VALIDATION')
   if (!draft?.geometry?.type) fail('feature.rejected', { userId }, 'The drawing is incomplete.', 'VALIDATION')
-  if (draft.teamId && !teams.some((team) => team.id === draft.teamId)) fail('feature.rejected', { userId }, 'That team is not in the exercise.', 'NOT_FOUND')
+  if (draft.sideId && !sides.some((side) => side.id === draft.sideId)) fail('feature.rejected', { userId }, 'That side is not in the exercise.', 'NOT_FOUND')
   let geometry = clone(draft.geometry)
   if (featureType === 'route' && draft.curved && geometry.type === 'LineString') geometry = { ...geometry, coordinates: smooth(geometry.coordinates) }
   const feature = {
@@ -506,7 +506,7 @@ export function createFeature(userId, draft) {
     name,
     featureType,
     layerId: featureType === 'unit' ? 'units' : `${featureType}s`,
-    teamId: draft.teamId || '',
+    sideId: draft.sideId || '',
     geometry,
     properties: { curved: Boolean(draft.curved) },
   }
@@ -521,9 +521,9 @@ export function updateFeature(userId, featureId, patch) {
   if (!feature) fail('feature.rejected', { userId, featureId }, 'That feature is no longer on the picture.', 'NOT_FOUND')
   if (patch.geometry) feature.geometry = clone(patch.geometry)
   if (patch.name != null) feature.name = requireName(patch.name, 'feature.rejected')
-  if (patch.teamId != null) {
-    if (patch.teamId && !teams.some((team) => team.id === patch.teamId)) fail('feature.rejected', { userId }, 'That team is not in the exercise.', 'NOT_FOUND')
-    feature.teamId = patch.teamId
+  if (patch.sideId != null) {
+    if (patch.sideId && !sides.some((side) => side.id === patch.sideId)) fail('feature.rejected', { userId }, 'That side is not in the exercise.', 'NOT_FOUND')
+    feature.sideId = patch.sideId
   }
   return snapshot(userId)
 }
@@ -569,7 +569,7 @@ export function createGraphic(userId, draft) {
       name,
       ownerId: userId,
       shapeType,
-      teamId: draft.teamId || '',
+      sideId: draft.sideId || '',
       geometry: clone(draft.geometry),
       properties: {
         strokeColor: marks.objective,
@@ -601,7 +601,7 @@ export function updateGraphic(userId, graphicId, patch) {
   remember()
   if (patch.geometry) graphic.geometry = clone(patch.geometry)
   if (patch.name != null) graphic.name = requireName(patch.name, 'planning.rejected')
-  if (patch.teamId != null) graphic.teamId = patch.teamId
+  if (patch.sideId != null) graphic.sideId = patch.sideId
   if (patch.properties) graphic.properties = { ...graphic.properties, ...patch.properties, comments: graphic.properties.comments, sharedWith: graphic.properties.sharedWith }
   return snapshot(userId)
 }
@@ -646,7 +646,7 @@ export function exportPlan(userId) {
       type: 'Feature',
       id: graphic.id,
       geometry: graphic.geometry,
-      properties: { name: graphic.name, shapeType: graphic.shapeType, teamId: graphic.teamId },
+      properties: { name: graphic.name, shapeType: graphic.shapeType, sideId: graphic.sideId },
     })),
   }
 }
@@ -705,7 +705,7 @@ export function promoteGraphic(userId, graphicId) {
       name: graphic.name,
       featureType: 'zone',
       layerId: 'zones',
-      teamId: graphic.teamId,
+      sideId: graphic.sideId,
       geometry: clone(graphic.geometry),
       properties: { promotedFrom: graphic.id },
     },
@@ -882,12 +882,12 @@ export function saveRoute(userId, draft) {
 
 function saveCatalogue(userId, featureType, draft) {
   const name = requireName(draft?.name, 'catalogue.rejected')
-  if (draft?.teamId && !teams.some((team) => team.id === draft.teamId)) fail('catalogue.rejected', { userId }, 'That team is not in the exercise.', 'NOT_FOUND')
+  if (draft?.sideId && !sides.some((side) => side.id === draft.sideId)) fail('catalogue.rejected', { userId }, 'That side is not in the exercise.', 'NOT_FOUND')
   if (draft?.id) {
     const feature = features.find((item) => item.id === draft.id && item.featureType === featureType)
     if (!feature) fail('catalogue.rejected', { userId, featureId: draft.id }, 'That record is no longer in the catalogue.', 'NOT_FOUND')
     feature.name = name
-    feature.teamId = draft.teamId || ''
+    feature.sideId = draft.sideId || ''
   } else if (featureType === 'zone') {
     fail('catalogue.rejected', { userId }, 'Draw a zone on the picture before adding it here.', 'VALIDATION')
   } else {

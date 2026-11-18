@@ -55,7 +55,7 @@ async function send(path, { method = 'GET', body, query, auth = true, token, for
   } catch (error) {
     if (error?.name === 'AbortError') throw error
     logger.warn('http.unreachable', { path, message: error?.message || 'network error' })
-    throw new ApiError('The Jayant service is not reachable.', 'UNAVAILABLE')
+    throw new ApiError('The GIS Warplan service is not reachable.', 'UNAVAILABLE')
   }
   if (!response.ok) {
     const failure = await toError(response)
