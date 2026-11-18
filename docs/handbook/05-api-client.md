@@ -67,7 +67,7 @@ Each one takes `userId` first. Each successful call returns a **full workbench s
 | `deleteFeature(userId, featureId)` | Any signed-in user. |
 | `saveMapView(userId, surface, view)` | `surface` is `picture` or `planning`. View is longitude, latitude, zoom. |
 | `resetMapViews(userId)` | Clears saved views, increments `homeToken`, logs `map.views_reset`. |
-| `updateBasemap(userId, patch)` | `source` is `osm` or `wms`. WMS needs a non-empty URL and layer name. Zoom 1–18. |
+| `updateBasemap(userId, patch)` | Removed from the product surface; the picture uses GeoServer WMS only. |
 
 Seed picture, near India:
 

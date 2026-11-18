@@ -4,8 +4,6 @@ import { logger } from '../lib/logger'
 import { marks } from '../theme/swatches'
 import { getIdentity, getRemote, registerSnapshot } from './directoryRemote'
 import { ApiError } from './errors'
-import { osmService } from './fixtures'
-
 export {
   assignUserSide,
   deleteRole,
@@ -36,7 +34,6 @@ const opacity = {}
 const settings = {
   source: 'wms',
   geoserverUrl: '',
-  osmUrl: osmService,
   wmsLayer: '',
   defaultZoom: 5,
   homeToken: 0,
@@ -49,9 +46,8 @@ export function applyMapCatalog(mapConfig) {
   if (mapConfig.server?.wmsUrl) {
     settings.geoserverUrl = mapConfig.server.wmsUrl
   }
+  settings.source = 'wms'
   if (mapConfig.view) {
-    settings.source = mapConfig.view.basemapSource === 'osm' ? 'osm' : 'wms'
-    if (mapConfig.view.osmUrl) settings.osmUrl = mapConfig.view.osmUrl
     if (Number.isFinite(mapConfig.view.zoom)) settings.defaultZoom = mapConfig.view.zoom
   }
   const base = (mapConfig.layers || []).find((layer) => layer.baseLayer)

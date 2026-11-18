@@ -3,9 +3,7 @@ import Draw, { createBox } from 'ol/interaction/Draw'
 import Modify from 'ol/interaction/Modify'
 import Select from 'ol/interaction/Select'
 import VectorLayer from 'ol/layer/Vector'
-import TileLayer from 'ol/layer/Tile'
 import VectorSource from 'ol/source/Vector'
-import XYZ from 'ol/source/XYZ'
 import GeoJSON from 'ol/format/GeoJSON'
 import Point from 'ol/geom/Point'
 import { fromCircle } from 'ol/geom/Polygon'
@@ -120,18 +118,6 @@ export function MapWorkbench({ map }) {
   const userId = useSessionStore((state) => state.session?.profile?.id)
   const home = useSessionStore((state) => state.session?.mapView)
   const saved = useRef(false)
-
-  useEffect(() => {
-    if (!map || !data) return undefined
-    let basemap = null
-    if (data.settings.source === 'osm' && data.settings.osmUrl) {
-      basemap = new TileLayer({ source: new XYZ({ url: data.settings.osmUrl }) })
-      map.getLayers().insertAt(0, basemap)
-    }
-    return () => {
-      if (basemap) map.removeLayer(basemap)
-    }
-  }, [map, data?.settings?.source, data?.settings?.osmUrl])
 
   useEffect(() => {
     if (!map || !data?.settings) return

@@ -12,7 +12,7 @@ Every shell uses `TopBar` and `ContextStrip` for the exercise: wordmark, scenari
 
 ## Map stage
 
-`MapStage` reads filters from the session and opacity from the directory. Layer names and the GeoServer address come from the API client (`fixtures.js` and `directory.js` settings), not from the map component. When the basemap source is `osm`, base filters are hidden and `MapWorkbench` inserts the tile URL from `settings.osmUrl`. When the source is `wms`, `serviceUrl` is the directory GeoServer address, or the session default. The shells pass `readout="none"` and `onReadout`. `StatusFooter` then shows latitude, longitude, height, scale, zoom, and the two CRS names. Height stays blank: this picture has no elevation. Scale is the view resolution at 96 dpi. The cursor is EPSG:4326. The map is EPSG:3857.
+`MapStage` reads filters from the session and opacity from the directory. Layer names and the GeoServer WMS address come from the backend map catalog (`/map/config`). The shells pass `readout="none"` and `onReadout`. `StatusFooter` then shows latitude, longitude, height, scale, zoom, and the two CRS names. Height stays blank: this picture has no elevation. Scale is the view resolution at 96 dpi. The cursor is EPSG:4326. The map is EPSG:3857.
 
 `readout="bar"` is a 32px strip under the map. `readout="overlay"` is a small paper at the bottom left. `PictureWorkspace` still uses those. The shells do not.
 

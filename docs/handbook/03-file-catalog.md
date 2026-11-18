@@ -66,7 +66,7 @@ Every file under `src/` that the app loads. Paths are from the project root. “
 | File | Purpose |
 | --- | --- |
 | `src/components/SituationMap.jsx` | OpenLayers map, GeoServer WMS tiles, pointer, zoom, home animation. Calls `onMap`. |
-| `src/components/MapWorkbench.jsx` | Vector features, draw, edit, select, measure, OSM basemap, saved view. Renders `null`. |
+| `src/components/MapWorkbench.jsx` | Vector features, draw, edit, select, measure, saved view. Renders `null`. |
 | `src/shared/ui/MapStage.jsx` | Combines the base map, the workbench, and the measure chip. Reports cursor and view to the footer. |
 | `src/shared/ui/StatusFooter.jsx` | Latitude, longitude, height, scale, zoom, and CRS. |
 | `src/shared/ui/ApplicationMenu.jsx` | Application sections as a rail, a band, an icon row, or a menu. |

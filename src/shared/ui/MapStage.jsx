@@ -14,15 +14,13 @@ export function pictureLayers(session, directory) {
   return session.filters.map((filter) => ({
     ...filter,
     opacity: directory?.opacity?.[filter.id] ?? 1,
-    visible: directory?.settings?.source === 'osm' && filter.base ? false : filter.visible,
+    visible: filter.visible,
   }))
 }
 
 export function pictureService(session, directory) {
   if (!session) return ''
-  return directory?.settings?.source === 'wms' && directory.settings.geoserverUrl
-    ? directory.settings.geoserverUrl
-    : session.mapService
+  return directory?.settings?.geoserverUrl || session.mapService || ''
 }
 
 export function MapStage({ readout = 'bar', onReadout }) {

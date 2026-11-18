@@ -29,7 +29,7 @@ const EMPTY_LAYER = {
   gisServerId: '', code: '', label: '', groupName: '', wmsLayers: '', format: 'image/png', transparent: true, baseLayer: false,
   sortOrder: 0, defaultVisible: false, defaultOpacity: 1, minZoom: '', maxZoom: '', cqlFilter: '', attribution: '', active: true,
 }
-const EMPTY_VIEW = { basemapSource: 'OSM', osmUrl: '', centerLon: 0, centerLat: 0, zoom: 4, minZoom: 0, maxZoom: 19, defaultGisServerId: '' }
+const EMPTY_VIEW = { centerLon: 0, centerLat: 0, zoom: 4, minZoom: 0, maxZoom: 19, defaultGisServerId: '' }
 
 const SERVER_TEXT = [['code', 'Code'], ['name', 'Name'], ['wmsUrl', 'WMS URL'], ['wfsUrl', 'WFS URL'], ['restUrl', 'REST URL'], ['workspaceDefault', 'Default workspace']]
 const LAYER_TEXT = [['code', 'Code'], ['label', 'Label'], ['groupName', 'Group'], ['wmsLayers', 'WMS layers'], ['format', 'Format'], ['cqlFilter', 'CQL filter'], ['attribution', 'Attribution']]
@@ -337,8 +337,6 @@ function ViewDefaultsTab({ servers }) {
   return (
     <Stack spacing={1.5} sx={{ maxWidth: 520 }}>
       {message ? <Alert severity="error">{message}</Alert> : null}
-      <Field name="basemapSource" label="Basemap source" form={form} errors={errors} onChange={change} />
-      <Field name="osmUrl" label="OSM tile URL" form={form} errors={errors} onChange={change} />
       <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
         {VIEW_NUMBER.map(([name, label]) => (
           <Field key={name} name={name} label={label} type="number" form={form} errors={errors} onChange={change} sx={{ width: 160 }} />

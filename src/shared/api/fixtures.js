@@ -13,6 +13,4 @@ export const plannedCenters = [{ id: 'india', name: 'Indian subcontinent', latit
 
 export const mapService = 'http://127.0.0.1:8080/geoserver/wms'
 
-export const osmService = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-
 export const clockStart = '2026-10-28T06:00:00'

@@ -9,7 +9,7 @@
 | Toast at the bottom right | `error.message` from `ApiError`. The console has the matching warn. |
 | Wrong menu | `useNavigation` and `navigationFor` in `directory.js`. |
 | Map is a thin line or missing | Parent height. See below. |
-| Tiles missing, tools fine | GeoServer on port 8080, or the basemap was switched to OSM. |
+| Tiles missing, tools fine | GeoServer on port 8080, and `/map/config` returning a WMS URL and layers. |
 | Sign-in loop | `sessionStorage` key `gis-warplan.session`. |
 | Slider or draw “does nothing” | `revision` bumping every tick. See below. |
 
