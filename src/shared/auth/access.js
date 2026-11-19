@@ -4,7 +4,7 @@ export function hasAny(functionalities, ...codes) {
   return codes.some((code) => hasFunctionality(functionalities, code))
 }
 
-/** Users, sides, roles or themes can be administered. */
+/** Any of the separate administration screens. */
 export function canOpenDirectory(functionalities) {
   return hasAny(
     functionalities,
@@ -40,18 +40,9 @@ export function navigationForFunctionalities(functionalities) {
   const groups = []
   if (hasFunctionality(functionalities, FunctionalityCodes.MAP_VIEW)) {
     const mapItems = [item('filters', 'Map filters', 'layers'), item('extent', 'Home extent', 'extent')]
-    if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_MAP)) {
-      mapItems.push(item('map-admin', 'Map catalog', 'settings'))
-    }
     groups.push({ id: 'map', label: 'Map', items: mapItems })
   }
 
-  const admin = []
-  if (canOpenDirectory(functionalities)) admin.push(item('directory', 'Users and sides', 'directory'))
-  if (canOpenOrbat(functionalities)) admin.push(item('orbat', 'ORBAT', 'orbat'))
-  if (hasFunctionality(functionalities, FunctionalityCodes.VIEW_AUDIT)) admin.push(item('audit', 'Audit', 'sessions'))
-  if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_ICONS)) admin.push(item('icons', 'Icons', 'table'))
-  if (admin.length) groups.push({ id: 'admin', label: 'Administration', items: admin })
   return groups
 }
 
@@ -64,13 +55,30 @@ export function sectionsForFunctionalities(functionalities) {
   if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_GAME)) {
     sections.push({ id: 'game', kicker: 'Exercise', label: 'Game', icon: 'control' })
   }
-  if (canOpenOrbat(functionalities)) sections.push({ id: 'orbat', kicker: 'Records', label: 'ORBAT', icon: 'orbat' })
-  if (canOpenDirectory(functionalities)) sections.push({ id: 'users', kicker: 'Access', label: 'User management', icon: 'directory' })
+  if (canOpenOrbat(functionalities)) sections.push({ id: 'orbat', kicker: 'ORBAT', label: 'ORBAT', icon: 'orbat' })
+  if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_SIDES)) {
+    sections.push({ id: 'teams', kicker: 'Standard data', label: 'Teams', icon: 'teams' })
+  }
+  if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_NODE_TYPES)) {
+    sections.push({ id: 'node-types', kicker: 'Standard data', label: 'Node types', icon: 'table' })
+  }
+  if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_THEMES)) {
+    sections.push({ id: 'themes', kicker: 'Standard data', label: 'Themes', icon: 'themes' })
+  }
+  if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_USERS)) {
+    sections.push({ id: 'users', kicker: 'Access', label: 'Users', icon: 'users' })
+  }
+  if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_ROLES)) {
+    sections.push({ id: 'roles', kicker: 'Access', label: 'Roles', icon: 'roles' })
+  }
   if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_MAP)) {
-    sections.push({ id: 'map', kicker: 'GIS', label: 'Map catalog', icon: 'settings' })
+    sections.push({ id: 'map', kicker: 'Records', label: 'Map catalog', icon: 'settings' })
   }
   if (hasFunctionality(functionalities, FunctionalityCodes.VIEW_AUDIT)) {
     sections.push({ id: 'audit', kicker: 'Records', label: 'Audit', icon: 'sessions' })
+  }
+  if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_ICONS)) {
+    sections.push({ id: 'icons', kicker: 'Records', label: 'Icons', icon: 'table' })
   }
   return sections
 }
@@ -80,7 +88,12 @@ export const SECTION_PANEL = Object.freeze({
   scenario: 'scenario-admin',
   game: 'game-admin',
   orbat: 'orbat',
-  users: 'directory',
+  teams: 'teams',
+  users: 'users',
+  roles: 'roles',
+  themes: 'themes',
+  'node-types': 'node-types',
+  icons: 'icons',
   map: 'map-admin',
   audit: 'audit',
 })

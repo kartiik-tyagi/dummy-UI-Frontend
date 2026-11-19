@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Box, Button, IconButton, ListItemButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useMediaQuery } from '@mui/material'
+import { Box, Button, IconButton, ListItemButton, ListItemIcon, ListItemText, ListSubheader, Menu, MenuItem, Tooltip, useMediaQuery } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import CloseIcon from '@mui/icons-material/Close'
@@ -44,6 +44,19 @@ function ItemButton({ section, selected, expanded, onSelect, placement }) {
   )
 }
 
+function groupSections(sections) {
+  const entries = []
+  let kicker = ''
+  sections.forEach((section) => {
+    if (section.kicker !== kicker) {
+      kicker = section.kicker
+      entries.push({ header: kicker })
+    }
+    entries.push({ section })
+  })
+  return entries
+}
+
 export function ApplicationMenu({ presentation = 'rail', expanded = false, onExpandedChange, onHide, edge = 'start' }) {
   const { sections, sectionId, select } = useSections()
   const theme = useTheme()
@@ -72,23 +85,23 @@ export function ApplicationMenu({ presentation = 'rail', expanded = false, onExp
           </Button>
         )}
         <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
-          {sections.length ? (
-            sections.map((section) => (
-              <MenuItem
-                key={section.id}
-                selected={section.id === sectionId}
-                onClick={() => {
-                  select(section.id)
-                  setAnchor(null)
-                }}
-              >
-                <ListItemIcon sx={{ color: section.id === sectionId ? 'primary.main' : 'text.secondary' }}>
-                  <NavIcon name={section.icon} />
-                </ListItemIcon>
-                {section.label}
-              </MenuItem>
-            ))
+          {sections.length ? groupSections(sections).map((entry) => entry.header ? (
+            <ListSubheader key={`group-${entry.header}`} sx={{ lineHeight: '32px' }}>{entry.header}</ListSubheader>
           ) : (
+            <MenuItem
+              key={entry.section.id}
+              selected={entry.section.id === sectionId}
+              onClick={() => {
+                select(entry.section.id)
+                setAnchor(null)
+              }}
+            >
+              <ListItemIcon sx={{ color: entry.section.id === sectionId ? 'primary.main' : 'text.secondary' }}>
+                <NavIcon name={entry.section.icon} />
+              </ListItemIcon>
+              {entry.section.label}
+            </MenuItem>
+          )) : (
             <MenuItem disabled>No application sections for this role</MenuItem>
           )}
         </Menu>

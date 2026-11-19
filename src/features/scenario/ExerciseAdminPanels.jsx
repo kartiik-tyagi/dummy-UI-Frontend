@@ -344,7 +344,7 @@ export function GameAdminPanel() {
     <Stack spacing={1.5}>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} useFlexGap sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap' }}>
         <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-          Games belong to a scenario. Each game owns its playing force. Activate one game for the exercise.
+          Games belong to a scenario. Each game owns its playing side. Activate one game for the exercise.
         </Typography>
         <TextField
           select
