@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Box,
@@ -26,48 +26,111 @@ import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import { useSessionStore } from '../../features/session/useSessionStore'
 import { FunctionalityCodes, hasFunctionality } from '../auth/functionalityCodes'
 import { getAssetSettings, setIconLabel } from '../api/assets'
-import { get, httpBlob } from '../api/http'
+import { useTheme } from '@mui/material/styles'
+import { get, httpBlob, httpText } from '../api/http'
+import { iconCssVars } from '../icons/iconTheme'
+import { isSvgPath, sanitizeToNode } from '../icons/svgDocument'
 import { EMPTY_LIST } from '../lib/empty'
 
 const previews = new Map()
+const previewListeners = new Set()
+let previewEpoch = 0
 
-/** Previews need the bearer header, so the bytes are fetched and shown from an object URL. */
+function readPreview(path) {
+  const entry = previews.get(path)
+  return entry && typeof entry === 'object' ? entry : null
+}
+
+function usePreviewEpoch() {
+  const [epoch, setEpoch] = useState(previewEpoch)
+  useEffect(() => {
+    const listener = (value) => setEpoch(value)
+    previewListeners.add(listener)
+    return () => previewListeners.delete(listener)
+  }, [])
+  return epoch
+}
+
+/** Drops a cached preview so the next paint reads the file again. */
+export function forgetIconPreview(path) {
+  const cached = previews.get(path)
+  if (cached?.kind === 'image' && cached.url) URL.revokeObjectURL(cached.url)
+  previews.delete(path)
+  previewEpoch += 1
+  previewListeners.forEach((listener) => listener(previewEpoch))
+}
+
+/** SVG is inlined so var(--wp-*) paints follow the active theme. Raster files stay images. */
 export function IconPreview({ path, size = 32, alt = '' }) {
-  const [url, setUrl] = useState(() => previews.get(path) || '')
+  const theme = useTheme()
+  const epoch = usePreviewEpoch()
+  const hostRef = useRef(null)
+  const [entry, setEntry] = useState(() => (path ? readPreview(path) : null))
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     if (!path) return undefined
-    const cached = previews.get(path)
+    const cached = readPreview(path)
     if (cached) {
-      setUrl(cached)
+      setEntry(cached)
+      setFailed(false)
       return undefined
     }
     let live = true
-    setUrl('')
+    setEntry(null)
     setFailed(false)
-    httpBlob('/icons/content', { query: { path } })
-      .then((blob) => {
-        const next = URL.createObjectURL(blob)
-        previews.set(path, next)
-        if (live) {
-          setUrl(next)
-          setFailed(false)
-        }
-      })
-      .catch(() => {
-        if (live) setFailed(true)
-      })
+    const done = (next) => {
+      previews.set(path, next)
+      if (live) {
+        setEntry(next)
+        setFailed(false)
+      }
+    }
+    const request = isSvgPath(path)
+      ? httpText('/icons/content', { query: { path } }).then((markup) => done({ kind: 'svg', markup }))
+      : httpBlob('/icons/content', { query: { path } }).then((blob) => done({ kind: 'image', url: URL.createObjectURL(blob) }))
+    request.catch(() => {
+      if (live) setFailed(true)
+    })
     return () => {
       live = false
     }
-  }, [path])
+  }, [path, epoch])
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host) return undefined
+    host.replaceChildren()
+    if (entry?.kind === 'svg') {
+      const node = sanitizeToNode(entry.markup)
+      if (node) host.appendChild(node)
+    }
+    return undefined
+  }, [entry])
 
   const box = { width: size, height: size, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
-  if (!path || failed || !url) {
+  if (!path || failed || !entry) {
     return <Box sx={{ ...box, border: 1, borderColor: 'divider', borderRadius: 0.5, color: 'text.disabled', fontSize: 10 }} aria-hidden>{failed ? '!' : ''}</Box>
   }
-  return <Box component="img" src={url} alt={alt} sx={{ ...box, objectFit: 'contain' }} />
+  if (entry.kind === 'image') {
+    return <Box component="img" src={entry.url} alt={alt} sx={{ ...box, objectFit: 'contain' }} />
+  }
+  return (
+    <Box
+      ref={hostRef}
+      role={alt ? 'img' : undefined}
+      aria-label={alt || undefined}
+      aria-hidden={alt ? undefined : true}
+      sx={{
+        ...box,
+        ...iconCssVars(theme),
+        color: 'text.primary',
+        overflow: 'hidden',
+        lineHeight: 0,
+        '& svg': { width: '100%', height: '100%', display: 'block' },
+      }}
+    />
+  )
 }
 
 function directories(node, depth = 0, found = []) {
@@ -94,7 +157,7 @@ function fileNameOf(path) {
 
 /**
  * Dialog that lists the icon folders (GET /icons), previews files and returns the chosen relative path.
- * Uploading needs MANAGE_ICONS.
+ * Label edits need MANAGE_ICONS.
  */
 export function IconPicker({ open, value = '', onClose, onSelect }) {
   const canUpload = useSessionStore((state) => hasFunctionality(state.session?.functionalities, FunctionalityCodes.MANAGE_ICONS))
@@ -327,6 +390,14 @@ let iconLabelPromiseUser = null
 
 function cacheFresh(userId) {
   return iconLabelCache != null && iconLabelCacheUser === userId
+}
+
+/** Drops the in-memory labels so the next field reads them again. */
+export function invalidateIconLabels() {
+  iconLabelCache = null
+  iconLabelCacheUser = null
+  iconLabelPromise = null
+  iconLabelPromiseUser = null
 }
 
 function loadIconLabels(userId, force = false) {

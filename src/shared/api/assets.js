@@ -1,4 +1,4 @@
-import { del, get, put } from './http'
+import { del, get, post, put } from './http'
 
 /**
  * The single asset-management row: the base icon folder the picker reads from and the per-icon labels.
@@ -16,3 +16,9 @@ export const setIconLabel = (path, label) => put('/asset-management/labels', { p
 
 /** Clears one icon's label so it falls back to the file name. */
 export const resetIconLabel = (path) => del('/asset-management/labels', { query: { path } })
+
+/** Saves a drawing as a new SVG in the icon folder. Name may omit .svg. */
+export const drawIcon = ({ name, directory, label, svg }) => post('/icons/draw', { name, directory, label, svg })
+
+/** Replaces the drawing stored at an existing SVG path. The file name does not change. */
+export const reviseIcon = ({ path, label, svg }) => put('/icons/draw', { path, label, svg })
