@@ -14,7 +14,7 @@ export const useOrbatPicture = create((set) => ({
   selectedId: null,
   parentId: null,
   show: (nodes, colour) => set({ active: true, nodes, colour: colour || '#2f6fed' }),
-  hide: () => set({ active: false, nodes: [], placeTypeId: null }),
+  hide: () => set({ active: false, nodes: [], placeTypeId: null, hover: null, menu: null }),
   setPlaceType: (placeTypeId) => set({ placeTypeId }),
   requestPlace: (longitude, latitude) => set((state) => ({
     place: { longitude, latitude, nodeTypeId: state.placeTypeId, parentId: state.parentId },
@@ -26,4 +26,10 @@ export const useOrbatPicture = create((set) => ({
     moveToken: state.moveToken + 1,
   })),
   requestSelect: (id) => set((state) => ({ selectedId: id, selectToken: state.selectToken + 1 })),
+  hover: null,
+  menu: null,
+  showHover: (hover) => set({ hover }),
+  clearHover: () => set({ hover: null }),
+  openMenu: (menu) => set({ menu, hover: null }),
+  closeMenu: () => set({ menu: null }),
 }))

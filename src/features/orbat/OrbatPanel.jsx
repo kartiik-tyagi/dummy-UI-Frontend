@@ -30,7 +30,8 @@ import * as api from './orbatApi'
 import { AllianceDialog, ForceDialog, MarkAsUserDialog, NodeNameDialog, ReplicaDialog } from './OrbatDialogs'
 import { asTheme } from '../admin/themeChoices'
 import { NodeFormDialog } from './NodeFormDialog'
-import { allowedChildren, childAllowed } from './nodeRules'
+import { childAllowed } from './nodeRules'
+import { OrbatMapChrome } from './OrbatMapChrome'
 import { useOrbatPicture } from './useOrbatPicture'
 import { swatches } from '../../shared/theme/swatches'
 import { swatchForColour } from '../../shared/api/mappers'
@@ -171,6 +172,7 @@ function ForceFields({ side, themes, onSave }) {
 }
 
 export default function OrbatPanel() {
+  // The map owns add, hover, and right-click. This panel is the tree.
   const session = useSessionStore((state) => state.session)
   const push = useToastStore((state) => state.push)
   const functionalities = session?.functionalities
@@ -381,7 +383,6 @@ export default function OrbatPanel() {
     setDialog(null)
   }
 
-  const placeTypeId = useOrbatPicture((state) => state.placeTypeId)
   const placeToken = useOrbatPicture((state) => state.placeToken)
   const moveToken = useOrbatPicture((state) => state.moveToken)
   const selectToken = useOrbatPicture((state) => state.selectToken)
@@ -714,17 +715,6 @@ export default function OrbatPanel() {
         </Caption>
       ) : null}
 
-      {record && !loading && selected && editable ? (
-        <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
-          <Caption>Place under {selected.name}</Caption>
-          {allowedChildren([...nodeTypes.values()], nodeTypes.get(selected.nodeTypeId)).map((type) => (
-            <Button key={type.id} size="small" variant={String(placeTypeId) === String(type.id) ? 'contained' : 'text'} onClick={() => useOrbatPicture.getState().setPlaceType(type.id)}>
-              {type.name}
-            </Button>
-          ))}
-        </Stack>
-      ) : null}
-
       {record && !loading ? (
         <Box sx={{ flex: 1, minWidth: 0, minHeight: 240, maxHeight: { md: 'calc(100vh - 280px)' }, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
           {nodes.length ? (
@@ -793,6 +783,22 @@ export default function OrbatPanel() {
         themes={themes}
         onClose={() => setDialog(null)}
         onSubmit={markUser}
+      />
+      <OrbatMapChrome
+        nodes={nodes}
+        types={[...nodeTypes.values()]}
+        editable={editable}
+        canMark={tab === 'standard' && canMark}
+        marked={userByNode}
+        onAdd={(parentId, typeId, latitude, longitude) => setDialog({
+          kind: 'add',
+          id: parentId,
+          presetTypeId: typeId,
+          preset: { latitude, longitude },
+        })}
+        onEdit={(id) => setDialog({ kind: 'edit', id })}
+        onDelete={(id) => setDialog({ kind: 'delete', id })}
+        onMark={(id) => openMark(id)}
       />
       <ForceDialog open={dialog?.kind === 'force'} themes={themes} onClose={() => setDialog(null)} onSubmit={createForce} />
       <ReplicaDialog open={dialog?.kind === 'replica'} sides={replicaSides} onClose={() => setDialog(null)} onSubmit={replicate} />

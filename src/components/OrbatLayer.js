@@ -4,6 +4,7 @@ import Feature from 'ol/Feature'
 import Point from 'ol/geom/Point'
 import VectorLayer from 'ol/layer/Vector'
 import VectorSource from 'ol/source/Vector'
+import Cluster from 'ol/source/Cluster'
 import Translate from 'ol/interaction/Translate'
 import { fromLonLat, toLonLat } from 'ol/proj'
 import { Circle, Fill, Icon, Stroke, Style, Text } from 'ol/style'
@@ -43,16 +44,11 @@ function finite(value) {
   return Number.isFinite(number) ? number : null
 }
 
-/** Spreads markers that share a point so each one can be clicked. Stored coordinates are unchanged. */
-function displayPoint(node, indexInGroup, groupSize) {
-  const latitude = finite(node.latitude)
-  const longitude = finite(node.longitude)
-  if (latitude == null || longitude == null || groupSize < 2) return [longitude, latitude]
-  const angle = (Math.PI * 2 * indexInGroup) / groupSize
-  return [longitude + Math.cos(angle) * 0.02, latitude + Math.sin(angle) * 0.02]
+function membersOf(feature) {
+  return feature?.get('features') || []
 }
 
-/** Draws the open ORBAT draft on the situation map and reports clicks and drags. */
+/** Draws the open ORBAT draft on the situation map. Nearby markers cluster as you zoom out. */
 export function OrbatLayer({ map }) {
   const theme = useTheme()
   const active = useOrbatPicture((state) => state.active)
@@ -64,8 +60,12 @@ export function OrbatLayer({ map }) {
   useEffect(() => {
     if (!map) return undefined
     const source = new VectorSource()
-    const layer = new VectorLayer({ source, zIndex: 20 })
-    const translate = new Translate({ layers: [layer] })
+    const clusters = new Cluster({ distance: 42, minDistance: 18, source })
+    const layer = new VectorLayer({ source: clusters, zIndex: 20 })
+    const translate = new Translate({
+      layers: [layer],
+      filter: (feature) => membersOf(feature).length === 1,
+    })
     map.addLayer(layer)
     map.addInteraction(translate)
 
@@ -77,8 +77,9 @@ export function OrbatLayer({ map }) {
       if (!armed) return
       armed = false
       const hit = map.forEachFeatureAtPixel(event.pixel, (feature) => feature, { layerFilter: (item) => item === layer })
-      if (hit) {
-        useOrbatPicture.getState().requestSelect(hit.get('nodeId'))
+      const members = membersOf(hit)
+      if (members.length === 1) {
+        useOrbatPicture.getState().requestSelect(members[0].get('nodeId'))
         return
       }
       if (!useOrbatPicture.getState().placeTypeId) return
@@ -87,18 +88,48 @@ export function OrbatLayer({ map }) {
     }
     const onEnd = (event) => {
       event.features.forEach((feature) => {
+        const member = membersOf(feature)[0]
+        if (!member) return
         const [longitude, latitude] = toLonLat(feature.getGeometry().getCoordinates())
-        useOrbatPicture.getState().requestMove(feature.get('nodeId'), longitude, latitude)
+        useOrbatPicture.getState().requestMove(member.get('nodeId'), longitude, latitude)
       })
     }
+    const atEvent = (event) => {
+      const pixel = map.getEventPixel(event)
+      const hit = map.forEachFeatureAtPixel(pixel, (feature) => feature, { layerFilter: (item) => item === layer })
+      return membersOf(hit).map((feature) => feature.get('nodeId')).filter(Boolean)
+    }
+    const onMove = (event) => {
+      if (event.dragging) return
+      const nodeIds = atEvent(event.originalEvent)
+      if (!nodeIds.length) {
+        useOrbatPicture.getState().clearHover()
+        return
+      }
+      useOrbatPicture.getState().showHover({ x: event.originalEvent.clientX, y: event.originalEvent.clientY, nodeIds })
+    }
+    const onContext = (event) => {
+      event.preventDefault()
+      const nodeIds = atEvent(event)
+      const [longitude, latitude] = toLonLat(map.getEventCoordinate(event))
+      useOrbatPicture.getState().openMenu({ x: event.clientX, y: event.clientY, longitude, latitude, nodeIds })
+    }
+    const onLeave = () => useOrbatPicture.getState().clearHover()
     map.getViewport().addEventListener('pointerdown', onDown)
+    map.getViewport().addEventListener('pointerleave', onLeave)
+    map.getViewport().addEventListener('contextmenu', onContext)
     map.on('singleclick', onClick)
+    map.on('pointermove', onMove)
     translate.on('translateend', onEnd)
     layer.set('orbat', true)
+    layer.set('orbatSource', source)
 
     return () => {
       translate.un('translateend', onEnd)
       map.getViewport().removeEventListener('pointerdown', onDown)
+      map.getViewport().removeEventListener('pointerleave', onLeave)
+      map.getViewport().removeEventListener('contextmenu', onContext)
+      map.un('pointermove', onMove)
       map.un('singleclick', onClick)
       map.removeInteraction(translate)
       map.removeLayer(layer)
@@ -109,7 +140,8 @@ export function OrbatLayer({ map }) {
     if (!map) return
     const layer = map.getLayers().getArray().find((item) => item.get('orbat'))
     if (!layer) return
-    const source = layer.getSource()
+    const source = layer.get('orbatSource')
+    if (!source) return
     source.clear()
     if (!active) return
     const placed = nodes.filter((node) => finite(node.latitude) != null && finite(node.longitude) != null)
@@ -117,20 +149,32 @@ export function OrbatLayer({ map }) {
     if (missing.length) {
       Promise.all(missing.map((path) => loadIcon(path, theme))).then(() => setIconsReady((value) => value + 1))
     }
-    const groups = new Map()
+    const byId = new Map(placed.map((node) => [node.id, node]))
     placed.forEach((node) => {
-      const key = `${finite(node.latitude).toFixed(3)}:${finite(node.longitude).toFixed(3)}`
-      if (!groups.has(key)) groups.set(key, [])
-      groups.get(key).push(node)
-    })
-    placed.forEach((node) => {
-      const key = `${finite(node.latitude).toFixed(3)}:${finite(node.longitude).toFixed(3)}`
-      const group = groups.get(key)
-      const [longitude, latitude] = displayPoint(node, group.indexOf(node), group.length)
-      const feature = new Feature({ geometry: new Point(fromLonLat([longitude, latitude])) })
+      const feature = new Feature({ geometry: new Point(fromLonLat([finite(node.longitude), finite(node.latitude)])) })
       feature.set('nodeId', node.id)
+      source.addFeature(feature)
+    })
+    layer.setStyle((feature) => {
+      const members = membersOf(feature)
+      if (members.length > 1) {
+        return new Style({
+          image: new Circle({
+            radius: 15,
+            fill: new Fill({ color: theme.palette.primary.main }),
+            stroke: new Stroke({ color: theme.palette.background.paper, width: 2 }),
+          }),
+          text: new Text({
+            text: String(members.length),
+            font: '600 12px Roboto',
+            fill: new Fill({ color: theme.palette.primary.contrastText }),
+          }),
+        })
+      }
+      const node = byId.get(members[0]?.get('nodeId'))
+      if (!node) return null
       const icon = node.iconPath ? iconUrls.get(iconKey(node.iconPath, theme)) : ''
-      feature.setStyle(new Style({
+      return new Style({
         image: icon
           ? new Icon({ src: icon, scale: 1.5, anchor: [0.5, 0.5] })
           : new Circle({ radius: 6, fill: new Fill({ color: colour }), stroke: new Stroke({ color: theme.palette.background.paper, width: 2 }) }),
@@ -141,8 +185,7 @@ export function OrbatLayer({ map }) {
           fill: new Fill({ color: theme.palette.text.primary }),
           stroke: new Stroke({ color: theme.palette.background.paper, width: 3 }),
         }),
-      }))
-      source.addFeature(feature)
+      })
     })
     map.getTargetElement().style.cursor = placeTypeId ? 'crosshair' : ''
   }, [map, active, nodes, colour, placeTypeId, iconsReady, theme])
