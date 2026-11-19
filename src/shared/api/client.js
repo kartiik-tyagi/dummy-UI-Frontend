@@ -84,6 +84,7 @@ const meSchema = z.object({
   playingNodeId: z.string().nullable(),
   canWork: z.boolean(),
   workBlockedReason: z.string(),
+  roleCodes: z.array(z.string()),
 })
 
 const sessionSchema = z.object({

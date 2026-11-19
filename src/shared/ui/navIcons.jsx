@@ -22,6 +22,9 @@ import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import AnchorOutlinedIcon from '@mui/icons-material/AnchorOutlined'
 import FlightOutlinedIcon from '@mui/icons-material/FlightOutlined'
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
+import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined'
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined'
+import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
 
 const ICONS = {
   layers: LayersOutlinedIcon,
@@ -43,6 +46,10 @@ const ICONS = {
   zones: CropSquareOutlinedIcon,
   routes: TimelineOutlinedIcon,
   directory: GroupsOutlinedIcon,
+  teams: GroupsOutlinedIcon,
+  users: PersonOutlinedIcon,
+  roles: BadgeOutlinedIcon,
+  themes: PaletteOutlinedIcon,
   flags: ToggleOnOutlinedIcon,
   shield: ShieldOutlinedIcon,
   flag: FlagOutlinedIcon,

@@ -42,6 +42,10 @@ export function themeFromEntity(entity) {
     name: entity.name || base.name,
     family: typeof config.family === 'string' && config.family ? config.family : base.family || 'Custom',
     defaultTheme: Boolean(entity.defaultTheme),
+    holderKind: entity.holderKind || 'FREE',
+    holderId: entity.holderId == null ? null : String(entity.holderId),
+    holderName: entity.holderName || '',
+    loginTheme: Boolean(entity.loginTheme),
   }
 }
 

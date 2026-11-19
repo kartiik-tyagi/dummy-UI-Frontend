@@ -4,7 +4,12 @@ import { PanelBody } from './workbench/Panels'
 
 const TITLES = {
   filters: 'Map filters',
-  directory: 'Users and sides',
+  teams: 'Teams',
+  users: 'Users',
+  roles: 'Roles',
+  themes: 'Themes',
+  'node-types': 'Node types',
+  icons: 'Icons',
   orbat: 'ORBAT',
   'map-admin': 'Map catalog',
   'scenario-admin': 'Scenario management',

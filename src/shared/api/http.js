@@ -38,8 +38,8 @@ async function toError(response) {
   })
 }
 
-async function send(path, { method = 'GET', body, query, auth = true, token, formData, signal } = {}) {
-  const headers = { Accept: 'application/json' }
+async function send(path, { method = 'GET', body, query, auth = true, token, formData, signal, accept } = {}) {
+  const headers = { Accept: accept || 'application/json' }
   const bearer = token || (auth ? getToken() : null)
   if (bearer) headers.Authorization = `Bearer ${bearer}`
   const init = { method, headers, signal }
@@ -81,10 +81,16 @@ export async function http(path, options) {
   }
 }
 
-/** Binary request (icon previews need the bearer header, so they cannot be plain <img src>). */
+/** Binary request (raster icon previews need the bearer header, so they cannot be plain <img src>). */
 export async function httpBlob(path, options) {
   const response = await send(path, options)
   return response.blob()
+}
+
+/** Text request. SVG icons are read this way so the page can paint them with the active theme. */
+export async function httpText(path, options) {
+  const response = await send(path, { ...options, accept: '*/*' })
+  return response.text()
 }
 
 export const get = (path, query, options) => http(path, { ...options, method: 'GET', query })

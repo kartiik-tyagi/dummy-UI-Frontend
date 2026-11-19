@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Box, Typography } from '@mui/material'
 import { MapWorkbench } from '../../components/MapWorkbench'
 import SituationMap from '../../components/SituationMap'
+import { OrbatLayer } from '../../components/OrbatLayer'
 import { useDirectoryStore } from '../../features/directory/useDirectoryStore'
 import { useSessionStore } from '../../features/session/useSessionStore'
 
@@ -77,6 +78,7 @@ export function MapStage({ readout = 'bar', onReadout }) {
   return (
     <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        <OrbatLayer map={map} />
         <SituationMap
           view={session.mapView}
           serviceUrl={pictureService(session, directory)}

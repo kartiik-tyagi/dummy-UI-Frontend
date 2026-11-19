@@ -4,6 +4,9 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Divider,
   Menu,
   MenuItem,
@@ -15,7 +18,7 @@ import {
 } from '@mui/material'
 import { FunctionalityCodes, hasFunctionality } from '../../shared/auth/functionalityCodes'
 import { hasAny } from '../../shared/auth/access'
-import { get } from '../../shared/api/http'
+import { get, post, put } from '../../shared/api/http'
 import * as directoryApi from '../../shared/api/client'
 import { EMPTY_LIST } from '../../shared/lib/empty'
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
@@ -24,7 +27,14 @@ import { useDirectoryStore } from '../directory/useDirectoryStore'
 import { useToastStore } from '../feedback/useToastStore'
 import { useSessionStore } from '../session/useSessionStore'
 import * as api from './orbatApi'
-import { AllianceDialog, MarkAsUserDialog, NodeNameDialog, ReplicaDialog } from './OrbatDialogs'
+import { AllianceDialog, ForceDialog, MarkAsUserDialog, NodeNameDialog, ReplicaDialog } from './OrbatDialogs'
+import { asTheme } from '../admin/themeChoices'
+import { NodeFormDialog } from './NodeFormDialog'
+import { allowedChildren, childAllowed } from './nodeRules'
+import { useOrbatPicture } from './useOrbatPicture'
+import { swatches } from '../../shared/theme/swatches'
+import { swatchForColour } from '../../shared/api/mappers'
+import { IconField } from '../../shared/ui/IconPicker'
 import { OrbatTree } from './OrbatTree'
 import { addChild, descendantIds, indexNodes, nodesOf, pathTo, removeSubtree, reparent, sameNodes, updateNode } from './orbatDoc'
 
@@ -110,13 +120,66 @@ function NodeDetails({ node, nodes, nodeTypes, sidesById, userName, editable, ca
   )
 }
 
+function ForceFields({ side, themes, onSave }) {
+  const [swatchId, setSwatchId] = useState(swatchForColour(side?.colour)?.id || 'custom')
+  const [icon, setIcon] = useState(side?.icon || '')
+  const [themeId, setThemeId] = useState(side?.themeId == null ? '' : String(side.themeId))
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    setSwatchId(swatchForColour(side?.colour)?.id || 'custom')
+    setIcon(side?.icon || '')
+    setThemeId(side?.themeId == null ? '' : String(side.themeId))
+  }, [side?.id, side?.colour, side?.icon, side?.themeId])
+  if (!side) return null
+  const options = themes.filter((theme) => theme.holderKind === 'FREE' || (theme.holderKind === 'SIDE' && String(theme.holderId) === String(side.id)))
+  return (
+    <Stack spacing={1}>
+      <Caption>This root is the side. Colour, icon and theme save immediately. Rename the root, then Save the tree, to rename the side.</Caption>
+      <TextField select size="small" label="Map colour" value={swatchId} onChange={(event) => setSwatchId(event.target.value)}>
+        {swatchId === 'custom' ? <MenuItem value="custom">{side.colour || 'Current colour'}</MenuItem> : null}
+        {swatches.map((swatch) => (
+          <MenuItem key={swatch.id} value={swatch.id}>{swatch.name}</MenuItem>
+        ))}
+      </TextField>
+      <IconField value={icon} onChange={setIcon} />
+      <TextField select size="small" required label="Theme" value={themeId} onChange={(event) => setThemeId(event.target.value)}>
+        {options.map((theme) => (
+          <MenuItem key={theme.id} value={String(theme.id)}>{theme.name}</MenuItem>
+        ))}
+      </TextField>
+      <Button
+        size="small"
+        variant="outlined"
+        disabled={busy || !themeId}
+        onClick={async () => {
+          setBusy(true)
+          try {
+            await onSave(side, {
+              colour: swatchId === 'custom' ? side.colour : (swatches.find((item) => item.id === swatchId)?.color || side.colour),
+              icon,
+              themeId,
+            })
+          } finally {
+            setBusy(false)
+          }
+        }}
+      >
+        {busy ? 'Saving' : 'Save side'}
+      </Button>
+    </Stack>
+  )
+}
+
 export default function OrbatPanel() {
   const session = useSessionStore((state) => state.session)
   const push = useToastStore((state) => state.push)
   const functionalities = session?.functionalities
   const userId = session?.profile?.id
 
+  const roleCodes = session?.me?.roleCodes || []
+  const sideScoped = roleCodes.includes('SIDE_ADMINISTRATOR') && !roleCodes.includes('ADMINISTRATOR')
   const canStandard = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_STANDARD_ORBAT)
+  const canCreateForce = canStandard && !sideScoped
   const canMark = hasFunctionality(functionalities, FunctionalityCodes.MARK_AS_USER)
   const canPlaying = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_PLAYING_ORBAT)
   const canAlliance = hasFunctionality(functionalities, FunctionalityCodes.MANAGE_ALLIANCE)
@@ -185,7 +248,7 @@ export default function OrbatPanel() {
       .catch((error) => live && setLoadError(error?.message || 'The sides could not be loaded.'))
     soft(api.listNodeTypes(), (rows) => setNodeTypes(new Map(rows.map((type) => [type.id, type]))))
     if (canMark) soft(api.listRoles(), setRoles)
-    soft(get('/themes'), setThemes)
+    soft(get('/themes'), (rows) => setThemes(rows.map(asTheme)))
     if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_USERS)) {
       soft(api.listUsers(), (rows) => {
         const next = new Map()
@@ -303,9 +366,71 @@ export default function OrbatPanel() {
 
   const onTreeAction = (action, id) => {
     if (action === 'add') openAdd(id)
-    if (action === 'rename') openRename(id)
+    if (action === 'rename') setDialog({ kind: 'edit', id })
     if (action === 'delete') openDelete(id)
   }
+
+  const commitNode = (values) => {
+    if (dialog?.kind === 'edit') setNodes((current) => updateNode(current, dialog.id, values))
+    else {
+      const result = addChild(nodes, dialog.id, values)
+      setNodes(result.nodes)
+      setSelectedId(result.node.id)
+      setExpanded((current) => new Set(current).add(dialog.id))
+    }
+    setDialog(null)
+  }
+
+  const placeTypeId = useOrbatPicture((state) => state.placeTypeId)
+  const placeToken = useOrbatPicture((state) => state.placeToken)
+  const moveToken = useOrbatPicture((state) => state.moveToken)
+  const selectToken = useOrbatPicture((state) => state.selectToken)
+  const pictureSideId = tab === 'standard' ? Number(sideId) : record?.sideId
+  const pictureColour = sidesById.get(pictureSideId)?.colour || '#2f6fed'
+
+  useEffect(() => {
+    const pictured = nodes.map((node) => {
+      const type = nodeTypes.get(node.nodeTypeId) || nodeTypes.get(Number(node.nodeTypeId))
+      return { ...node, iconPath: node.iconPath || type?.iconPath || '' }
+    })
+    useOrbatPicture.getState().show(pictured, pictureColour)
+  }, [nodes, pictureColour, nodeTypes])
+
+  useEffect(() => {
+    useOrbatPicture.setState({ parentId: selectedId })
+  }, [selectedId])
+
+  useEffect(() => () => useOrbatPicture.getState().hide(), [])
+
+  useEffect(() => {
+    if (!placeToken) return
+    const place = useOrbatPicture.getState().place
+    if (!place?.nodeTypeId || !place.parentId) return
+    setDialog({
+      kind: 'add',
+      id: place.parentId,
+      presetTypeId: place.nodeTypeId,
+      preset: {
+        latitude: Math.round(place.latitude * 1e5) / 1e5,
+        longitude: Math.round(place.longitude * 1e5) / 1e5,
+      },
+    })
+  }, [placeToken])
+
+  useEffect(() => {
+    if (!moveToken) return
+    const move = useOrbatPicture.getState().move
+    if (!move) return
+    setNodes((current) => updateNode(current, move.id, {
+      latitude: Math.round(move.latitude * 1e5) / 1e5,
+      longitude: Math.round(move.longitude * 1e5) / 1e5,
+    }))
+  }, [moveToken])
+
+  useEffect(() => {
+    if (!selectToken) return
+    setSelectedId(useOrbatPicture.getState().selectedId)
+  }, [selectToken])
 
   const homeSideNumeric = tab === 'standard' ? Number(sideId) : record?.sideId
 
@@ -330,7 +455,15 @@ export default function OrbatPanel() {
     setDialog(null)
   }
 
-  const moveNode = (id, parentId) => setNodes((current) => reparent(current, id, parentId))
+  const moveNode = (id, parentId) => {
+    const node = index.byId.get(id)
+    const parent = index.byId.get(parentId)
+    if (!childAllowed(nodeTypes, node, parent)) {
+      push('That type cannot sit under the chosen parent.', 'warning')
+      return
+    }
+    setNodes((current) => reparent(current, id, parentId))
+  }
 
   const save = async (metadata) => {
     if (!record) return null
@@ -366,6 +499,34 @@ export default function OrbatPanel() {
     setDialog(null)
     if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_USERS)) {
       useDirectoryStore.getState().run(() => directoryApi.loadWorkbench(userId)).catch(() => {})
+    }
+  }
+
+  const createForce = async (body) => {
+    const created = await post('/sides', body)
+    setDialog(null)
+    setSides((current) => [...(current || []).filter((item) => item.id !== created.id), created])
+    setSideId(String(created.id))
+    const rows = await get('/themes')
+    setThemes(rows.map(asTheme))
+    push(`Side ${created.name} created.`, 'success')
+  }
+
+  const saveForce = async (side, patch) => {
+    try {
+      await put(`/sides/${side.id}`, {
+        name: side.name,
+        description: side.description || '',
+        colour: patch.colour,
+        icon: patch.icon || null,
+        themeId: Number(patch.themeId),
+      })
+      setSides(await api.listSides())
+      const rows = await get('/themes')
+      setThemes(rows.map(asTheme))
+      push('Side saved.', 'success')
+    } catch (error) {
+      push(error?.message || 'The side could not be saved.', 'error')
     }
   }
 
@@ -451,6 +612,9 @@ export default function OrbatPanel() {
               <MenuItem key={side.id} value={String(side.id)}>{side.name}</MenuItem>
             ))}
           </TextField>
+          {canCreateForce ? (
+            <Button size="small" variant="outlined" onClick={() => setDialog({ kind: 'force' })}>New side</Button>
+          ) : null}
           {standard === null && canStandard ? (
             <Button size="small" variant="outlined" onClick={createStandard} disabled={saving}>Create standard ORBAT</Button>
           ) : null}
@@ -550,46 +714,36 @@ export default function OrbatPanel() {
         </Caption>
       ) : null}
 
+      {record && !loading && selected && editable ? (
+        <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+          <Caption>Place under {selected.name}</Caption>
+          {allowedChildren([...nodeTypes.values()], nodeTypes.get(selected.nodeTypeId)).map((type) => (
+            <Button key={type.id} size="small" variant={String(placeTypeId) === String(type.id) ? 'contained' : 'text'} onClick={() => useOrbatPicture.getState().setPlaceType(type.id)}>
+              {type.name}
+            </Button>
+          ))}
+        </Stack>
+      ) : null}
+
       {record && !loading ? (
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1.5, minHeight: 320 }}>
-          <Box sx={{ flex: 1, minWidth: 0, maxHeight: { md: 'calc(100vh - 330px)' }, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
-            {nodes.length ? (
-              <OrbatTree
-                nodes={nodes}
-                nodeTypes={nodeTypes}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                expanded={expanded}
-                setExpanded={setExpanded}
-                editable={editable}
-                onContextMenu={(point, id) => setMenu({ ...point, id })}
-                onMove={moveNode}
-                onAction={onTreeAction}
-                userByNode={userByNode}
-              />
-            ) : (
-              <Box sx={{ p: 2 }}><Caption>This ORBAT has no nodes.</Caption></Box>
-            )}
-          </Box>
-          <Box
-            component="aside"
-            aria-label="Node details"
-            sx={{ width: { xs: '100%', md: 250 }, flexShrink: 0, borderLeft: { md: 1 }, borderTop: { xs: 1, md: 0 }, borderColor: 'divider', pl: { md: 1.5 }, pt: { xs: 1.5, md: 0 }, overflow: 'auto', maxHeight: { md: 'calc(100vh - 330px)' } }}
-          >
-            <NodeDetails
-              node={selected}
+        <Box sx={{ flex: 1, minWidth: 0, minHeight: 240, maxHeight: { md: 'calc(100vh - 280px)' }, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+          {nodes.length ? (
+            <OrbatTree
               nodes={nodes}
               nodeTypes={nodeTypes}
-              sidesById={sidesById}
-              userName={selected ? userByNode.get(selected.id) : ''}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              expanded={expanded}
+              setExpanded={setExpanded}
               editable={editable}
-              canMark={tab === 'standard' && canMark}
-              onChange={(patch) => setNodes((current) => updateNode(current, selected.id, patch))}
-              onAdd={() => openAdd(selected.id)}
-              onDelete={() => openDelete(selected.id)}
-              onMark={() => openMark(selected.id)}
+              onContextMenu={(point, id) => setMenu({ ...point, id })}
+              onMove={moveNode}
+              onAction={onTreeAction}
+              userByNode={userByNode}
             />
-          </Box>
+          ) : (
+            <Box sx={{ p: 2 }}><Caption>This ORBAT has no nodes.</Caption></Box>
+          )}
         </Box>
       ) : null}
 
@@ -599,29 +753,31 @@ export default function OrbatPanel() {
         anchorReference="anchorPosition"
         anchorPosition={menu ? { top: menu.y, left: menu.x } : undefined}
       >
-        {editable ? <MenuItem onClick={() => { closeMenu(); openAdd(menu.id) }}>Add child</MenuItem> : null}
-        {editable ? <MenuItem onClick={() => { closeMenu(); openRename(menu.id) }}>Rename</MenuItem> : null}
+        {editable && menuNode?.parentId == null && tab === 'standard' ? <MenuItem onClick={() => { closeMenu(); setDialog({ kind: 'side' }) }}>Edit side</MenuItem> : null}
+        {editable ? <MenuItem onClick={() => { closeMenu(); openAdd(menu.id) }}>Add</MenuItem> : null}
+        {editable && menuNode?.parentId ? <MenuItem onClick={() => { closeMenu(); setDialog({ kind: 'edit', id: menu.id }) }}>Edit</MenuItem> : null}
         {editable && menuNode?.parentId ? <MenuItem onClick={() => { closeMenu(); openDelete(menu.id) }}>Delete</MenuItem> : null}
         {tab === 'standard' && canMark && menu && !markedHere(menu.id) ? <MenuItem onClick={() => { closeMenu(); openMark(menu.id) }}>Mark as user</MenuItem> : null}
         {!editable && !(tab === 'standard' && canMark) ? <MenuItem disabled>Read only</MenuItem> : null}
       </Menu>
 
-      <NodeNameDialog
-        open={dialog?.kind === 'add'}
-        title={`Add a child under ${index.byId.get(dialog?.id)?.name || ''}`}
-        submitLabel="Add"
-        withType
-        nodeTypes={[...nodeTypes.values()]}
+      <NodeFormDialog
+        open={dialog?.kind === 'add' || dialog?.kind === 'edit'}
+        title={dialog?.kind === 'edit' ? 'Edit node' : `Add under ${index.byId.get(dialog?.id)?.name || ''}`}
+        types={[...nodeTypes.values()]}
+        parent={dialog?.kind === 'add' ? index.byId.get(dialog?.id) : index.byId.get(index.byId.get(dialog?.id)?.parentId)}
+        initial={dialog?.kind === 'edit' ? index.byId.get(dialog?.id) : null}
+        preset={dialog?.preset}
+        presetTypeId={dialog?.presetTypeId}
         onClose={() => setDialog(null)}
-        onSubmit={addNode}
+        onSubmit={commitNode}
       />
-      <NodeNameDialog
-        open={dialog?.kind === 'rename'}
-        title="Rename node"
-        initialName={index.byId.get(dialog?.id)?.name || ''}
-        onClose={() => setDialog(null)}
-        onSubmit={renameNode}
-      />
+      <Dialog open={dialog?.kind === 'side'} onClose={() => setDialog(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Edit side</DialogTitle>
+        <DialogContent>
+          <ForceFields side={sidesById.get(Number(sideId))} themes={themes} onSave={async (side, patch) => { await saveForce(side, patch); setDialog(null) }} />
+        </DialogContent>
+      </Dialog>
       <ConfirmDialog
         open={dialog?.kind === 'delete'}
         title="Delete node"
@@ -634,9 +790,11 @@ export default function OrbatPanel() {
         open={dialog?.kind === 'mark'}
         node={index.byId.get(dialog?.id)}
         roles={roles}
+        themes={themes}
         onClose={() => setDialog(null)}
         onSubmit={markUser}
       />
+      <ForceDialog open={dialog?.kind === 'force'} themes={themes} onClose={() => setDialog(null)} onSubmit={createForce} />
       <ReplicaDialog open={dialog?.kind === 'replica'} sides={replicaSides} onClose={() => setDialog(null)} onSubmit={replicate} />
       <AllianceDialog open={dialog?.kind === 'alliance'} sides={countrySides} themes={themes} onClose={() => setDialog(null)} onSubmit={createAlliance} />
       <ConfirmDialog

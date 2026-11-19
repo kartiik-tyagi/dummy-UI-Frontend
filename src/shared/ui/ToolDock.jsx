@@ -2,7 +2,7 @@ import { Box, useMediaQuery } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
 import { ToolPanel } from './ToolPanel'
 
-const WIDE = new Set(['orbat', 'map-admin', 'scenario-admin', 'game-admin', 'audit', 'directory', 'icons'])
+const WIDE = new Set(['orbat', 'map-admin', 'scenario-admin', 'game-admin', 'audit', 'teams', 'users', 'roles', 'themes', 'node-types', 'icons'])
 
 function dockWidth(panel) {
   if (panel === 'orbat') return { xs: '100%', md: 'min(820px, 62vw)' }

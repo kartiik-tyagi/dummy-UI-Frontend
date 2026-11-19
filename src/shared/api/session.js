@@ -86,9 +86,10 @@ export async function buildSession(me) {
   const gameRows = gameLists.flat()
 
   const themes = themeRows.map(themeFromEntity)
-  const chosen =
-    themes.find((item) => item.id === String(me.themeId)) || themes.find((item) => item.defaultTheme) || themes[0] || paletteFallback()
-  const canSelectTheme = hasFunctionality(functionalities, FunctionalityCodes.CHOOSE_THEME)
+  const isApex = me.name === 'APEX'
+  const chosen = themes.find((item) => item.id === String(me.themeId)) || paletteFallback()
+  const selectable = themes.filter((item) => item.holderKind === 'FREE' || item.loginTheme || item.id === String(me.themeId))
+  const canSelectTheme = isApex && hasFunctionality(functionalities, FunctionalityCodes.CHOOSE_THEME)
 
   const scenarios = scenarioRows.map((row) => ({ id: String(row.id), name: row.name, active: Boolean(row.active) }))
   const activeScenario = scenarios.find((item) => item.active)
@@ -106,14 +107,15 @@ export async function buildSession(me) {
   }))
   const activeGame = games.find((item) => item.active)
   const navigation = navigationForFunctionalities(functionalities)
-  if (!navigation.length) {
+  const sections = sectionsForFunctionalities(functionalities)
+  if (!navigation.length && !sections.length) {
     throw new ApiError('This account has no map or administration access.', 'FORBIDDEN')
   }
 
   return {
     profile: profileFromMe(me, sides),
     theme: chosen,
-    themes: canSelectTheme && themes.length ? themes : [chosen],
+    themes: canSelectTheme && selectable.length ? selectable : [chosen],
     canSelectTheme,
     scenarios,
     selectedScenarioId: activeScenario?.id || '',
@@ -121,7 +123,7 @@ export async function buildSession(me) {
     activeGame: { id: activeGame?.id || '', name: activeGame?.name || '' },
     games,
     navigation,
-    sections: sectionsForFunctionalities(functionalities),
+    sections,
     resources: [],
     plans: [],
     filters: filtersFromMapConfig(mapConfig),

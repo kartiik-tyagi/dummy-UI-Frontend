@@ -53,14 +53,15 @@ export function pathTo(nodes, id) {
   return path
 }
 
-export function addChild(nodes, parentId, { name, nodeTypeId = null, homeSideId }) {
+export function addChild(nodes, parentId, values) {
   const parent = nodes.find((node) => node.id === parentId)
   const node = {
+    ...values,
     id: newId(),
     parentId,
-    nodeTypeId,
-    homeSideId: parent?.homeSideId ?? homeSideId,
-    name: String(name).trim(),
+    nodeTypeId: values.nodeTypeId ?? null,
+    homeSideId: parent?.homeSideId ?? values.homeSideId,
+    name: String(values.name || '').trim(),
   }
   return { nodes: [...nodes, node], node }
 }
