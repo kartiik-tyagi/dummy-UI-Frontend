@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert,
+  Box,
+  Button,
   Chip,
   Stack,
   TextField,
@@ -19,24 +21,12 @@ import { IconField, IconPreview } from '../../shared/ui/IconPicker'
 import { LoadingState } from '../../shared/ui/LoadingState'
 import { ExerciseLayout } from '../scenario/ExerciseLayout'
 import { useToastStore } from '../feedback/useToastStore'
-import {
-  ComfortButton,
-  EmptyState,
-  FormShell,
-  ListCard,
-  PageIntro,
-  actionButtonSx,
-  fieldSx,
-  metaSx,
-} from './standardUi'
-
-const chipSx = { fontSize: '0.95rem', height: 32, fontWeight: 500 }
 
 function parentsLabel(type) {
   const parents = type?.properties?.parents
-  if (type?.properties?.root) return 'Top of the tree (root)'
-  if (!Array.isArray(parents) || !parents.length) return 'Can sit under any parent'
-  return `Usually under: ${parents.map((code) => code.toLowerCase().replaceAll('_', ' ')).join(', ')}`
+  if (type?.properties?.root) return 'Root'
+  if (!Array.isArray(parents) || !parents.length) return 'Any parent'
+  return parents.map((code) => code.toLowerCase().replaceAll('_', ' ')).join(', ')
 }
 
 function NodeTypesList() {
@@ -77,45 +67,70 @@ function NodeTypesList() {
   if (!rows) return <LoadingState label="Loading node types" />
 
   return (
-    <Stack spacing={3}>
-      <PageIntro>
-        Node types describe the kinds of units on a force tree — for example Division or Brigade. Choose a clear name
-        and an icon so people can recognise them on the map.
-      </PageIntro>
+    <Stack spacing={2}>
+      <Typography variant="body2" color="text.secondary">
+        Seeded types keep their parent rules and attributes. The icon is chosen from the icon folder.
+      </Typography>
 
       {!rows.length ? (
-        <EmptyState
-          title="No node types yet"
-          body="Add the unit kinds your force trees will use. Built-in (seeded) types keep their special rules."
-          actionLabel="Add a node type"
-          onAction={() => navigate('/standard/node-types/new')}
-        />
+        <Box
+          sx={{
+            py: 8,
+            px: 3,
+            textAlign: 'center',
+            border: 1,
+            borderColor: 'divider',
+            borderStyle: 'dashed',
+            borderRadius: 2,
+          }}
+        >
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            No node types yet
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2.5, color: 'text.secondary' }}>
+            Create a node type for ORBAT nodes to use.
+          </Typography>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/standard/node-types/new')}>
+            New node type
+          </Button>
+        </Box>
       ) : (
-        <Stack spacing={2}>
+        <Stack spacing={1.25}>
           {rows.map((row) => (
-            <ListCard
+            <Box
               key={row.id}
-              leading={row.iconPath ? <IconPreview path={row.iconPath} size={36} /> : null}
-              title={row.name}
-              meta={`${row.description || 'No description yet'} · ${parentsLabel(row)}`}
-              badges={
-                <>
-                  <Chip variant="outlined" label={`Code: ${row.code}`} sx={chipSx} />
-                  {row.properties?.seeded ? <Chip color="primary" label="Built-in" sx={chipSx} /> : null}
-                </>
-              }
-              primaryAction={
-                <ComfortButton
-                  variant="contained"
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: 1,
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 0.75 }} flexWrap="wrap" useFlexGap>
+                {row.iconPath ? <IconPreview path={row.iconPath} size={24} /> : null}
+                <Typography variant="h6" sx={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: '1.05rem' }}>
+                  {row.name}
+                </Typography>
+                <Chip size="small" variant="outlined" label={row.code} />
+                {row.properties?.seeded ? <Chip size="small" color="primary" label="Seeded" /> : null}
+                <Chip size="small" variant="outlined" label={parentsLabel(row)} />
+              </Stack>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
+                {row.description || 'No description'}
+              </Typography>
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Button
+                  size="small"
+                  variant="outlined"
                   startIcon={<EditOutlinedIcon />}
                   onClick={() => navigate(`/standard/node-types/${row.id}`)}
                 >
-                  Open / edit
-                </ComfortButton>
-              }
-              secondaryAction={
-                !row.properties?.seeded ? (
-                  <ComfortButton
+                  Edit
+                </Button>
+                {!row.properties?.seeded ? (
+                  <Button
+                    size="small"
                     color="error"
                     variant="outlined"
                     startIcon={<DeleteOutlinedIcon />}
@@ -123,27 +138,19 @@ function NodeTypesList() {
                     onClick={() => setDeleting(row)}
                   >
                     Remove
-                  </ComfortButton>
-                ) : (
-                  <ComfortButton variant="outlined" disabled>
-                    Built-in — cannot remove
-                  </ComfortButton>
-                )
-              }
-            />
+                  </Button>
+                ) : null}
+              </Stack>
+            </Box>
           ))}
         </Stack>
       )}
 
       <ConfirmDialog
         open={Boolean(deleting)}
-        title="Remove this node type?"
-        message={
-          deleting
-            ? `“${deleting.name}” will be permanently removed. Built-in types cannot be removed.`
-            : ''
-        }
-        confirmLabel="Yes, remove"
+        title="Remove node type"
+        message={deleting ? `Remove “${deleting.name}”? Seeded types cannot be removed.` : ''}
+        confirmLabel="Remove"
         busy={busyDelete}
         onClose={() => {
           if (!busyDelete) setDeleting(null)
@@ -245,101 +252,68 @@ function NodeTypeEditor() {
   if (!ready) return <LoadingState label="Opening node type" />
 
   return (
-    <FormShell
-      actions={
-        <>
-          <ComfortButton
-            variant="outlined"
-            onClick={() => navigate('/standard/node-types')}
-            disabled={busy || busyDelete}
-          >
-            Back to node types
-          </ComfortButton>
-          <ComfortButton
-            variant="contained"
-            startIcon={<SaveOutlinedIcon />}
-            disabled={busy || busyDelete || !name.trim() || (!seeded && !code.trim())}
-            onClick={save}
-            sx={{ flex: { sm: '1 1 auto' }, maxWidth: { sm: 300 } }}
-          >
-            {busy ? 'Saving…' : isNew ? 'Create node type' : 'Save changes'}
-          </ComfortButton>
-          {!isNew && !seeded ? (
-            <ComfortButton
-              color="error"
-              variant="text"
-              startIcon={<DeleteOutlinedIcon />}
-              disabled={busy || busyDelete}
-              onClick={() => setDeleting(true)}
-            >
-              Remove
-            </ComfortButton>
-          ) : null}
-        </>
-      }
-    >
-      {message ? (
-        <Alert severity="error" sx={{ fontSize: '1.05rem' }}>
-          {message}
-        </Alert>
-      ) : null}
+    <Stack spacing={2.5} sx={{ maxWidth: 560 }}>
+      {message ? <Alert severity="error">{message}</Alert> : null}
       {!isNew ? (
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-          <Chip variant="outlined" label={parentsLabel({ properties })} sx={chipSx} />
-          {seeded ? <Chip color="primary" label="Built-in" sx={chipSx} /> : null}
+          <Chip size="small" variant="outlined" label={parentsLabel({ properties })} />
+          {seeded ? <Chip size="small" color="primary" label="Seeded" /> : null}
         </Stack>
       ) : null}
       <TextField
-        label="Short code"
+        label="Code"
         value={code}
         onChange={(event) => setCode(event.target.value)}
         fullWidth
         required={!seeded}
         disabled={seeded}
-        helperText={
-          seeded
-            ? 'Built-in codes cannot be changed.'
-            : 'Letters and numbers only, for example DIVISION or BRIGADE.'
-        }
-        sx={fieldSx}
+        helperText={seeded ? 'Seeded codes cannot be changed.' : undefined}
       />
+      <TextField label="Name" value={name} onChange={(event) => setName(event.target.value)} fullWidth required />
       <TextField
-        label="Display name"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        fullWidth
-        required
-        helperText="The name people see in lists and on the force tree."
-        sx={fieldSx}
-      />
-      <TextField
-        label="Description (optional)"
+        label="Description"
         value={description}
         onChange={(event) => setDescription(event.target.value)}
         fullWidth
         multiline
-        minRows={3}
-        helperText="A short note about when to use this type."
-        sx={fieldSx}
+        minRows={2}
       />
       <IconField value={iconPath} onChange={setIconPath} />
       {seeded ? (
-        <Typography sx={metaSx}>
-          This is a built-in type. You can change the name, description, and icon. Parent rules stay fixed.
+        <Typography variant="body2" color="text.secondary">
+          Parent rules and attributes stay with the seeded catalogue entry.
         </Typography>
       ) : null}
+      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+        <Button onClick={() => navigate('/standard/node-types')} disabled={busy || busyDelete}>
+          Back to list
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<SaveOutlinedIcon />}
+          disabled={busy || busyDelete || !name.trim() || (!seeded && !code.trim())}
+          onClick={save}
+        >
+          {busy ? 'Saving…' : isNew ? 'Create node type' : 'Save node type'}
+        </Button>
+        {!isNew && !seeded ? (
+          <Button color="error" startIcon={<DeleteOutlinedIcon />} disabled={busy || busyDelete} onClick={() => setDeleting(true)}>
+            Remove
+          </Button>
+        ) : null}
+      </Stack>
       <ConfirmDialog
         open={deleting}
-        title="Remove this node type?"
-        message="This cannot be undone. Units already using it may be affected."
-        confirmLabel="Yes, remove"
+        title="Remove node type"
+        message="Remove this node type?"
+        confirmLabel="Remove"
         busy={busyDelete}
         onClose={() => {
           if (!busyDelete) setDeleting(false)
         }}
         onConfirm={confirmDelete}
       />
-    </FormShell>
+    </Stack>
   )
 }
 
@@ -350,14 +324,9 @@ export function NodeTypesListPage() {
       kicker="Standard data"
       title="Node types"
       actions={
-        <ComfortButton
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/standard/node-types/new')}
-          sx={actionButtonSx}
-        >
-          Add a node type
-        </ComfortButton>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/standard/node-types/new')}>
+          New node type
+        </Button>
       }
     >
       <NodeTypesList />
@@ -369,7 +338,7 @@ export function NodeTypeEditorPage() {
   const { id } = useParams()
   const isNew = !id || id === 'new'
   return (
-    <ExerciseLayout kicker="Standard data" title={isNew ? 'Add a node type' : 'Edit node type'}>
+    <ExerciseLayout kicker="Standard data" title={isNew ? 'New node type' : 'Edit node type'}>
       <NodeTypeEditor />
     </ExerciseLayout>
   )

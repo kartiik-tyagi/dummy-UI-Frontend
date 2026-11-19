@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert,
+  Box,
+  Button,
   Checkbox,
   Chip,
   FormControlLabel,
@@ -22,26 +24,6 @@ import { ExerciseLayout } from '../scenario/ExerciseLayout'
 import { useToastStore } from '../feedback/useToastStore'
 import { useSessionStore } from '../session/useSessionStore'
 import { asTheme, holderLabel } from './themeChoices'
-import {
-  ComfortButton,
-  EmptyState,
-  FormShell,
-  ListCard,
-  PageIntro,
-  actionButtonSx,
-  fieldSx,
-  metaSx,
-} from './standardUi'
-
-const chipSx = { fontSize: '0.95rem', height: 32, fontWeight: 500 }
-
-function statusLabel(theme) {
-  if (!theme || theme.holderKind === 'FREE') return 'Available'
-  if (theme.loginTheme) return 'Used for login (APEX)'
-  if (theme.holderKind === 'SIDE') return `Given to team: ${theme.holderName}`
-  if (theme.holderKind === 'USER') return `Given to user: ${theme.holderName}`
-  return holderLabel(theme)
-}
 
 function ThemesList() {
   const navigate = useNavigate()
@@ -81,75 +63,87 @@ function ThemesList() {
   if (!rows) return <LoadingState label="Loading themes" />
 
   return (
-    <Stack spacing={3}>
-      <PageIntro>
-        Themes control the colours people see on screen. Create a theme here, then give it to a team or a person from
-        Teams or Users. The APEX theme is what appears on the login screen.
-      </PageIntro>
+    <Stack spacing={2}>
+      <Typography variant="body2" color="text.secondary">
+        A theme is allotted to one team or one user. Members of a team display the team theme until a user override is
+        allotted. APEX&apos;s theme is the login theme.
+      </Typography>
 
       {!rows.length ? (
-        <EmptyState
-          title="No themes yet"
-          body="Add a theme first, then assign it when you edit a team or a user."
-          actionLabel="Add a theme"
-          onAction={() => navigate('/standard/themes/new')}
-        />
+        <Box
+          sx={{
+            py: 8,
+            px: 3,
+            textAlign: 'center',
+            border: 1,
+            borderColor: 'divider',
+            borderStyle: 'dashed',
+            borderRadius: 2,
+          }}
+        >
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            No themes yet
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2.5, color: 'text.secondary' }}>
+            Create a theme, then allot it from Teams or Users.
+          </Typography>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/standard/themes/new')}>
+            New theme
+          </Button>
+        </Box>
       ) : (
-        <Stack spacing={2}>
-          {rows.map((row) => {
-            const available = row.holderKind === 'FREE'
-            return (
-              <ListCard
-                key={row.id}
-                title={row.name}
-                meta={row.description || 'No description yet'}
-                badges={
-                  <>
-                    {row.defaultTheme ? <Chip color="primary" label="Default" sx={chipSx} /> : null}
-                    <Chip
-                      variant="outlined"
-                      color={available ? 'success' : 'default'}
-                      label={statusLabel(row)}
-                      sx={chipSx}
-                    />
-                  </>
-                }
-                primaryAction={
-                  <ComfortButton
-                    variant="contained"
-                    startIcon={<EditOutlinedIcon />}
-                    onClick={() => navigate(`/standard/themes/${row.id}`)}
-                  >
-                    Open / edit
-                  </ComfortButton>
-                }
-                secondaryAction={
-                  <ComfortButton
-                    color="error"
-                    variant="outlined"
-                    startIcon={<DeleteOutlinedIcon />}
-                    disabled={busyDelete || !available}
-                    onClick={() => setDeleting(row)}
-                    title={!available ? 'Only available themes can be removed' : undefined}
-                  >
-                    {available ? 'Remove theme' : 'In use — cannot remove'}
-                  </ComfortButton>
-                }
-              />
-            )
-          })}
+        <Stack spacing={1.25}>
+          {rows.map((row) => (
+            <Box
+              key={row.id}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: 1,
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }} flexWrap="wrap" useFlexGap>
+                <Typography variant="h6" sx={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: '1.05rem' }}>
+                  {row.name}
+                </Typography>
+                {row.defaultTheme ? <Chip size="small" color="primary" label="Default" /> : null}
+                <Chip size="small" variant="outlined" label={holderLabel(row)} />
+              </Stack>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
+                {row.description || 'No description'}
+              </Typography>
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditOutlinedIcon />}
+                  onClick={() => navigate(`/standard/themes/${row.id}`)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  startIcon={<DeleteOutlinedIcon />}
+                  disabled={busyDelete || row.holderKind !== 'FREE'}
+                  onClick={() => setDeleting(row)}
+                >
+                  Remove
+                </Button>
+              </Stack>
+            </Box>
+          ))}
         </Stack>
       )}
 
       <ConfirmDialog
         open={Boolean(deleting)}
-        title="Remove this theme?"
-        message={
-          deleting
-            ? `“${deleting.name}” will be permanently removed. Only themes that are not given to anyone can be removed.`
-            : ''
-        }
-        confirmLabel="Yes, remove theme"
+        title="Remove theme"
+        message={deleting ? `Remove “${deleting.name}”? Only free themes can be removed.` : ''}
+        confirmLabel="Remove"
         busy={busyDelete}
         onClose={() => {
           if (!busyDelete) setDeleting(null)
@@ -176,7 +170,7 @@ function ThemeEditor() {
   const [defaultTheme, setDefaultTheme] = useState(false)
   const [configJson, setConfigJson] = useState(null)
   const [holderKind, setHolderKind] = useState('FREE')
-  const [statusText, setStatusText] = useState('Available')
+  const [holderChip, setHolderChip] = useState('Free')
 
   useEffect(() => {
     let live = true
@@ -193,7 +187,7 @@ function ThemeEditor() {
         setDefaultTheme(Boolean(row.defaultTheme))
         setConfigJson(row.configJson)
         setHolderKind(row.holderKind || 'FREE')
-        setStatusText(statusLabel(row))
+        setHolderChip(holderLabel(row))
         setReady(true)
       } catch (error) {
         if (!live) return
@@ -220,7 +214,7 @@ function ThemeEditor() {
       if (isNew) {
         const created = await post('/themes', body)
         logger.info('theme.created', { id: created.id, name: body.name })
-        push('Theme created. Assign it from Teams or Users.', 'success')
+        push('Theme created. Allot it from Teams or Users.', 'success')
         await refreshSession().catch(() => {})
         navigate(`/standard/themes/${created.id}`, { replace: true })
       } else {
@@ -254,99 +248,66 @@ function ThemeEditor() {
 
   if (!ready) return <LoadingState label="Opening theme" />
 
-  const available = holderKind === 'FREE'
-
   return (
-    <FormShell
-      actions={
-        <>
-          <ComfortButton variant="outlined" onClick={() => navigate('/standard/themes')} disabled={busy || busyDelete}>
-            Back to themes
-          </ComfortButton>
-          <ComfortButton
-            variant="contained"
-            startIcon={<SaveOutlinedIcon />}
-            disabled={busy || busyDelete || !name.trim()}
-            onClick={save}
-            sx={{ flex: { sm: '1 1 auto' }, maxWidth: { sm: 280 } }}
-          >
-            {busy ? 'Saving…' : isNew ? 'Create theme' : 'Save changes'}
-          </ComfortButton>
-          {!isNew ? (
-            <ComfortButton
-              color="error"
-              variant="text"
-              startIcon={<DeleteOutlinedIcon />}
-              disabled={busy || busyDelete || !available}
-              onClick={() => setDeleting(true)}
-            >
-              {available ? 'Remove theme' : 'In use — cannot remove'}
-            </ComfortButton>
-          ) : null}
-        </>
-      }
-    >
-      {message ? (
-        <Alert severity="error" sx={{ fontSize: '1.05rem' }}>
-          {message}
-        </Alert>
-      ) : null}
+    <Stack spacing={2.5} sx={{ maxWidth: 560 }}>
+      {message ? <Alert severity="error">{message}</Alert> : null}
       {!isNew ? (
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-          <Chip
-            variant="outlined"
-            color={available ? 'success' : 'default'}
-            label={statusText}
-            sx={chipSx}
-          />
-          {defaultTheme ? <Chip color="primary" label="Default" sx={chipSx} /> : null}
+          <Chip size="small" variant="outlined" label={holderChip} />
+          {defaultTheme ? <Chip size="small" color="primary" label="Default" /> : null}
         </Stack>
       ) : null}
+      <TextField label="Theme name" value={name} onChange={(event) => setName(event.target.value)} fullWidth required />
       <TextField
-        label="Theme name"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        fullWidth
-        required
-        helperText="A short name people will recognise in lists."
-        sx={fieldSx}
-      />
-      <TextField
-        label="Description (optional)"
+        label="Description"
         value={description}
         onChange={(event) => setDescription(event.target.value)}
         fullWidth
         multiline
-        minRows={3}
-        helperText="A few words about when this theme should be used."
-        sx={fieldSx}
+        minRows={2}
       />
       <FormControlLabel
-        control={
-          <Checkbox
-            checked={defaultTheme}
-            onChange={(event) => setDefaultTheme(event.target.checked)}
-            sx={{ '& .MuiSvgIcon-root': { fontSize: 28 } }}
-          />
-        }
-        label={<Typography sx={{ fontSize: '1.05rem' }}>Mark as the default theme</Typography>}
+        control={<Checkbox checked={defaultTheme} onChange={(event) => setDefaultTheme(event.target.checked)} />}
+        label="Default theme"
       />
-      <Typography sx={metaSx}>
-        To give this theme to a team or a person, open Teams or Users and choose it there. Themes that are already given
-        out cannot be removed until they are freed.
+      <Typography variant="body2" color="text.secondary">
+        Allotment is managed from Teams and Users. Free themes can be removed; allotted themes cannot.
       </Typography>
+      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+        <Button onClick={() => navigate('/standard/themes')} disabled={busy || busyDelete}>
+          Back to list
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<SaveOutlinedIcon />}
+          disabled={busy || busyDelete || !name.trim()}
+          onClick={save}
+        >
+          {busy ? 'Saving…' : isNew ? 'Create theme' : 'Save theme'}
+        </Button>
+        {!isNew ? (
+          <Button
+            color="error"
+            startIcon={<DeleteOutlinedIcon />}
+            disabled={busy || busyDelete || holderKind !== 'FREE'}
+            onClick={() => setDeleting(true)}
+          >
+            Remove
+          </Button>
+        ) : null}
+      </Stack>
       <ConfirmDialog
         open={deleting}
-        title="Remove this theme?"
-        message="Only themes that are not given to anyone can be removed. This cannot be undone."
-        confirmLabel="Yes, remove theme"
+        title="Remove theme"
+        message="Remove this theme? Only free themes can be removed."
+        confirmLabel="Remove"
         busy={busyDelete}
         onClose={() => {
           if (!busyDelete) setDeleting(false)
         }}
         onConfirm={confirmDelete}
       />
-    </FormShell>
+    </Stack>
   )
 }
 
@@ -357,9 +318,9 @@ export function ThemesListPage() {
       kicker="Standard data"
       title="Themes"
       actions={
-        <ComfortButton variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/standard/themes/new')} sx={actionButtonSx}>
-          Add a theme
-        </ComfortButton>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/standard/themes/new')}>
+          New theme
+        </Button>
       }
     >
       <ThemesList />
@@ -371,7 +332,7 @@ export function ThemeEditorPage() {
   const { id } = useParams()
   const isNew = !id || id === 'new'
   return (
-    <ExerciseLayout kicker="Standard data" title={isNew ? 'Add a theme' : 'Edit theme'}>
+    <ExerciseLayout kicker="Standard data" title={isNew ? 'New theme' : 'Edit theme'}>
       <ThemeEditor />
     </ExerciseLayout>
   )

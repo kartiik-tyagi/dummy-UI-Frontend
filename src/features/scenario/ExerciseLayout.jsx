@@ -32,19 +32,12 @@ export function ExerciseLayout({ title, kicker, actions, children }) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
             <ApplicationMenu presentation="menu" />
             <Button
+              size="small"
               startIcon={<ArrowBackIcon />}
               onClick={() => navigate('/')}
-              sx={{
-                textTransform: 'none',
-                color: 'text.primary',
-                flexShrink: 0,
-                fontSize: '1rem',
-                fontWeight: 600,
-                px: 1.5,
-                minHeight: 40,
-              }}
+              sx={{ textTransform: 'none', color: 'text.primary', flexShrink: 0 }}
             >
-              Back to map
+              Map
             </Button>
           </Box>
         }
@@ -60,10 +53,10 @@ export function ExerciseLayout({ title, kicker, actions, children }) {
       >
         <Box
           sx={{
-            maxWidth: 960,
+            maxWidth: 1100,
             mx: 'auto',
-            px: { xs: 2.5, sm: 3.5, md: 4 },
-            py: { xs: 3, md: 4.5 },
+            px: { xs: 2, sm: 3, md: 4 },
+            py: { xs: 2.5, md: 4 },
           }}
         >
           <Box
@@ -71,10 +64,10 @@ export function ExerciseLayout({ title, kicker, actions, children }) {
               display: 'flex',
               alignItems: { xs: 'stretch', sm: 'flex-end' },
               justifyContent: 'space-between',
-              gap: 2.5,
+              gap: 2,
               flexDirection: { xs: 'column', sm: 'row' },
-              mb: 3.5,
-              pb: 3,
+              mb: 3,
+              pb: 2.5,
               borderBottom: 1,
               borderColor: 'divider',
             }}
@@ -84,7 +77,7 @@ export function ExerciseLayout({ title, kicker, actions, children }) {
                 <Typography
                   variant="overline"
                   color="text.secondary"
-                  sx={{ letterSpacing: '0.12em', display: 'block', mb: 0.75, fontSize: '0.8rem' }}
+                  sx={{ letterSpacing: '0.14em', display: 'block', mb: 0.5 }}
                 >
                   {kicker}
                 </Typography>
@@ -92,18 +85,13 @@ export function ExerciseLayout({ title, kicker, actions, children }) {
               <Typography
                 variant="h4"
                 component="h1"
-                sx={{
-                  fontWeight: 650,
-                  letterSpacing: '-0.02em',
-                  lineHeight: 1.25,
-                  fontSize: { xs: '1.75rem', sm: '2rem' },
-                }}
+                sx={{ fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.2 }}
               >
                 {title}
               </Typography>
             </Box>
             {actions ? (
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>{actions}</Box>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>{actions}</Box>
             ) : null}
           </Box>
           {children}
