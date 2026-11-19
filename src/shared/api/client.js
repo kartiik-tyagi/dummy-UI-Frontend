@@ -96,7 +96,18 @@ const sessionSchema = z.object({
   selectedScenarioId: z.string(),
   activeScenarioId: z.string(),
   activeGame: z.object({ id: z.string(), name: z.string() }),
-  games: z.array(z.object({ id: z.string(), name: z.string(), open: z.boolean(), scenarioId: z.string().optional(), active: z.boolean().optional(), status: z.string().optional(), moonphases: z.string().optional() })),
+  games: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    open: z.boolean(),
+    scenarioId: z.string().optional(),
+    active: z.boolean().optional(),
+    dateTime: z.string().optional(),
+    sunrise: z.string().optional(),
+    sunset: z.string().optional(),
+    moonphases: z.string().optional(),
+    description: z.string().optional(),
+  })),
   navigation: z
     .array(
       z.object({

@@ -98,8 +98,11 @@ export async function buildSession(me) {
     open: true,
     scenarioId: String(row.scenarioId),
     active: Boolean(row.active),
-    status: row.status || '',
+    dateTime: row.dateTime || '',
+    sunrise: row.sunrise || '',
+    sunset: row.sunset || '',
     moonphases: row.moonphases || '',
+    description: row.description || '',
   }))
   const activeGame = games.find((item) => item.active)
   const navigation = navigationForFunctionalities(functionalities)

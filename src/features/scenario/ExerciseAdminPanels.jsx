@@ -20,8 +20,52 @@ import { LoadingState } from '../../shared/ui/LoadingState'
 import { useToastStore } from '../feedback/useToastStore'
 import { useSessionStore } from '../session/useSessionStore'
 
-const EMPTY_SCENARIO = { name: '', description: '', themeId: '' }
-const EMPTY_GAME = { name: '', moonphases: '' }
+const EMPTY_SCENARIO = {
+  name: '',
+  generalIdea: '',
+  openingNarrative: '',
+  specialIdea: '',
+  attachedFile: '',
+}
+
+const EMPTY_GAME = {
+  name: '',
+  dateTime: '',
+  sunrise: '',
+  sunset: '',
+  moonphases: '',
+  description: '',
+}
+
+function clip(text, length = 80) {
+  if (!text) return ''
+  const value = String(text)
+  return value.length > length ? `${value.slice(0, length - 1)}…` : value
+}
+
+function toLocalInput(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 16)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function fromLocalInput(value) {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 19)
+}
+
+function toTimeInput(value) {
+  if (!value) return ''
+  return String(value).slice(0, 5)
+}
+
+function fromTimeInput(value) {
+  if (!value) return null
+  return value.length === 5 ? `${value}:00` : value
+}
 
 /**
  * List + form + activate/delete shared by scenarios and games.
@@ -102,8 +146,7 @@ function ExerciseCrud({ noun, listPath, itemPath, empty, toBody, primary, second
       const isNew = selectedId === 'new'
       const body = toBody(form)
       if (!body.name) {
-        const error = new ApiError(`Enter a ${noun} name.`, 'VALIDATION', { fieldErrors: { name: 'Required' } })
-        throw error
+        throw new ApiError(`Enter a ${noun} name.`, 'VALIDATION', { fieldErrors: { name: 'Required' } })
       }
       const saved = isNew ? await post(listPath, body) : await put(itemPath(selectedId), body)
       logger.info(`${noun}.admin.${isNew ? 'created' : 'updated'}`, { id: saved?.id ?? selectedId })
@@ -122,65 +165,78 @@ function ExerciseCrud({ noun, listPath, itemPath, empty, toBody, primary, second
       await syncShell()
     }, `The ${noun} could not be activated.`)
 
-  const remove = async () => {
-    await run(async () => {
+  const remove = () =>
+    run(async () => {
       await del(itemPath(selectedId))
       logger.info(`${noun}.admin.deleted`, { id: selectedId })
       push(`${noun[0].toUpperCase()}${noun.slice(1)} deleted.`, 'success')
-      reset(null)
+      setConfirmDelete(false)
       await load()
       await syncShell()
+      reset(null)
     }, `The ${noun} could not be deleted.`)
-    setConfirmDelete(false)
-  }
 
-  if (!listPath) return <Typography variant="body2" color="text.secondary">{disabledNote}</Typography>
+  if (!listPath) {
+    return <Alert severity="info">{disabledNote || `Choose a parent to manage ${noun}s.`}</Alert>
+  }
   if (!items) return <LoadingState label={`Loading ${noun}s`} />
 
   return (
-    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-      <Stack sx={{ width: { sm: 220, md: 260 }, flexShrink: 0, maxWidth: '100%' }} spacing={1}>
-        <Button size="small" variant="outlined" onClick={() => reset(null)}>New {noun}</Button>
-        <List dense disablePadding aria-label={`${noun}s`} sx={{ maxHeight: { xs: 180, sm: 420 }, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+    <Stack spacing={1.5} direction={{ xs: 'column', md: 'row' }} useFlexGap sx={{ alignItems: 'stretch' }}>
+      <Stack spacing={1} sx={{ width: { md: 280 }, flexShrink: 0 }}>
+        <Button size="small" variant={selectedId === 'new' ? 'contained' : 'outlined'} onClick={() => reset(null)} disabled={busy}>
+          New {noun}
+        </Button>
+        <List dense disablePadding sx={{ border: 1, borderColor: 'divider', borderRadius: 1, maxHeight: 360, overflow: 'auto' }}>
           {items.map((item) => (
-            <ListItemButton key={item.id} selected={item.id === selectedId} onClick={() => reset(item)}>
-              <ListItemText primary={primary(item)} secondary={secondary?.(item)} slotProps={{ primary: { noWrap: true }, secondary: { noWrap: true } }} />
+            <ListItemButton key={item.id} selected={item.id === selectedId} onClick={() => reset(item)} disabled={busy}>
+              <ListItemText
+                primary={primary(item)}
+                secondary={secondary?.(item)}
+                primaryTypographyProps={{ noWrap: true }}
+                secondaryTypographyProps={{ noWrap: true }}
+              />
               {item.active ? <Chip size="small" color="success" label="Active" sx={{ ml: 1 }} /> : null}
             </ListItemButton>
           ))}
           {!items.length ? (
-            <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>
-              {noun === 'scenario' ? 'No scenarios yet.' : 'No games yet.'}
-            </Typography>
+            <ListItemText sx={{ px: 2, py: 1.5 }} secondary={`No ${noun}s yet.`} />
           ) : null}
         </List>
       </Stack>
+
       <Stack spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="subtitle2">{selectedId === 'new' ? `New ${noun}` : `Edit ${noun}`}</Typography>
         {message ? <Alert severity="error">{message}</Alert> : null}
         <TextField
           size="small"
           label="Name"
+          required
           value={form.name}
           onChange={(event) => change('name', event.target.value)}
           error={Boolean(errors.name)}
           helperText={errors.name || undefined}
         />
-        {extraFields({ form, errors, change })}
+        {extraFields?.({ form, errors, change, selected })}
         {selected && details ? details(selected) : null}
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-          <Button variant="contained" size="small" disabled={busy} onClick={save}>{busy ? 'Working' : 'Save'}</Button>
-          {selected && !selected.active ? <Button size="small" variant="outlined" color="success" disabled={busy} onClick={activate}>Activate</Button> : null}
-          {selected ? <Button size="small" color="error" disabled={busy} onClick={() => setConfirmDelete(true)}>Delete</Button> : null}
+          <Button variant="contained" onClick={save} disabled={busy}>Save</Button>
+          {selectedId !== 'new' ? (
+            <Button variant="outlined" onClick={activate} disabled={busy || selected?.active}>Activate</Button>
+          ) : null}
+          {selectedId !== 'new' ? (
+            <Button color="error" variant="outlined" onClick={() => setConfirmDelete(true)} disabled={busy || selected?.active}>
+              Delete
+            </Button>
+          ) : null}
         </Stack>
       </Stack>
+
       <ConfirmDialog
         open={confirmDelete}
-        title={`Delete ${noun}`}
-        message={`Delete ${selected?.name || `this ${noun}`}? This cannot be undone.`}
+        title={`Delete ${noun}?`}
+        body={`Delete “${selected?.name || noun}”? This cannot be undone.`}
         confirmLabel="Delete"
         busy={busy}
-        error={message}
         onClose={() => setConfirmDelete(false)}
         onConfirm={remove}
       />
@@ -188,59 +244,67 @@ function ExerciseCrud({ noun, listPath, itemPath, empty, toBody, primary, second
   )
 }
 
-/** Scenarios: CRUD plus activation (needs MANAGE_SCENARIO). */
+/** Scenarios: plot fields + activate (needs MANAGE_SCENARIO). */
 export function ScenarioAdminPanel() {
-  const [themes, setThemes] = useState(EMPTY_LIST)
-
-  useEffect(() => {
-    let live = true
-    get('/themes')
-      .then((rows) => live && setThemes(rows || EMPTY_LIST))
-      .catch(() => {})
-    return () => {
-      live = false
-    }
-  }, [])
-
   return (
     <Stack spacing={1.5}>
       <Typography variant="body2" color="text.secondary">
-        Create scenarios, then activate one for the exercise.
+        Create the plot, then activate one scenario for the exercise.
       </Typography>
       <ExerciseCrud
         noun="scenario"
         listPath="/scenarios"
         itemPath={(id) => `/scenarios/${id}`}
         empty={EMPTY_SCENARIO}
-        toBody={(form) => ({ name: form.name.trim(), description: form.description || null, themeId: form.themeId === '' ? null : Number(form.themeId) })}
+        toBody={(form) => ({
+          name: form.name.trim(),
+          generalIdea: form.generalIdea || null,
+          openingNarrative: form.openingNarrative || null,
+          specialIdea: form.specialIdea || null,
+          attachedFile: form.attachedFile || null,
+        })}
         primary={(item) => item.name}
-        secondary={(item) => item.description}
+        secondary={(item) => clip(item.generalIdea)}
         extraFields={({ form, errors, change }) => (
           <>
             <TextField
               size="small"
-              label="Description"
+              label="General idea"
               multiline
               minRows={2}
-              value={form.description}
-              onChange={(event) => change('description', event.target.value)}
-              error={Boolean(errors.description)}
-              helperText={errors.description || undefined}
+              value={form.generalIdea}
+              onChange={(event) => change('generalIdea', event.target.value)}
+              error={Boolean(errors.generalIdea)}
+              helperText={errors.generalIdea || undefined}
             />
             <TextField
-              select
               size="small"
-              label="Theme (optional)"
-              value={form.themeId}
-              onChange={(event) => change('themeId', event.target.value)}
-              error={Boolean(errors.themeId)}
-              helperText={errors.themeId || undefined}
-            >
-              <MenuItem value="">None</MenuItem>
-              {themes.map((theme) => (
-                <MenuItem key={theme.id} value={theme.id}>{theme.name}</MenuItem>
-              ))}
-            </TextField>
+              label="Opening narrative"
+              multiline
+              minRows={3}
+              value={form.openingNarrative}
+              onChange={(event) => change('openingNarrative', event.target.value)}
+              error={Boolean(errors.openingNarrative)}
+              helperText={errors.openingNarrative || undefined}
+            />
+            <TextField
+              size="small"
+              label="Special idea"
+              multiline
+              minRows={2}
+              value={form.specialIdea}
+              onChange={(event) => change('specialIdea', event.target.value)}
+              error={Boolean(errors.specialIdea)}
+              helperText={errors.specialIdea || undefined}
+            />
+            <TextField
+              size="small"
+              label="Attached file"
+              value={form.attachedFile}
+              onChange={(event) => change('attachedFile', event.target.value)}
+              error={Boolean(errors.attachedFile)}
+              helperText={errors.attachedFile || 'Path or reference for an optional attachment'}
+            />
           </>
         )}
       />
@@ -280,7 +344,7 @@ export function GameAdminPanel() {
     <Stack spacing={1.5}>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} useFlexGap sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap' }}>
         <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-          Games belong to a scenario. Activate one game for the exercise.
+          Games belong to a scenario. Each game owns its playing force. Activate one game for the exercise.
         </Typography>
         <TextField
           select
@@ -305,27 +369,78 @@ export function GameAdminPanel() {
         listPath={scenarioId ? `/scenarios/${scenarioId}/games` : null}
         itemPath={(id) => `/games/${id}`}
         empty={EMPTY_GAME}
-        toBody={(form) => ({ name: form.name.trim(), moonphases: form.moonphases || null })}
+        toBody={(form) => ({
+          name: form.name.trim(),
+          dateTime: fromLocalInput(form.dateTime),
+          sunrise: fromTimeInput(form.sunrise),
+          sunset: fromTimeInput(form.sunset),
+          moonphases: form.moonphases || null,
+          description: form.description || null,
+          metadata: null,
+        })}
         primary={(item) => item.name}
-        secondary={(item) => item.status}
+        secondary={(item) => item.dateTime ? new Date(item.dateTime).toLocaleString() : clip(item.description)}
         disabledNote="Choose a scenario to manage its games."
-        extraFields={({ form, errors, change }) => (
-          <TextField
-            size="small"
-            label="Moonphases"
-            multiline
-            minRows={3}
-            value={form.moonphases}
-            onChange={(event) => change('moonphases', event.target.value)}
-            error={Boolean(errors.moonphases)}
-            helperText={errors.moonphases || undefined}
-          />
-        )}
-        details={(game) => (
-          <Stack direction="row" spacing={1}>
-            <Chip size="small" variant="outlined" label={`Status: ${game.status || 'unknown'}`} />
-            <Chip size="small" color={game.active ? 'success' : 'default'} label={game.active ? 'Active' : 'Inactive'} />
-          </Stack>
+        extraFields={({ form, errors, change, selected }) => (
+          <>
+            <TextField
+              size="small"
+              type="datetime-local"
+              label="Date and time"
+              InputLabelProps={{ shrink: true }}
+              value={form.dateTime ? toLocalInput(form.dateTime) : form.dateTime}
+              onChange={(event) => change('dateTime', event.target.value)}
+              error={Boolean(errors.dateTime)}
+              helperText={errors.dateTime || undefined}
+            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                size="small"
+                type="time"
+                label="Sunrise"
+                InputLabelProps={{ shrink: true }}
+                value={toTimeInput(form.sunrise)}
+                onChange={(event) => change('sunrise', event.target.value)}
+                error={Boolean(errors.sunrise)}
+                helperText={errors.sunrise || undefined}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                type="time"
+                label="Sunset"
+                InputLabelProps={{ shrink: true }}
+                value={toTimeInput(form.sunset)}
+                onChange={(event) => change('sunset', event.target.value)}
+                error={Boolean(errors.sunset)}
+                helperText={errors.sunset || undefined}
+                fullWidth
+              />
+            </Stack>
+            <TextField
+              size="small"
+              label="Moonphases"
+              multiline
+              minRows={2}
+              value={form.moonphases}
+              onChange={(event) => change('moonphases', event.target.value)}
+              error={Boolean(errors.moonphases)}
+              helperText={errors.moonphases || undefined}
+            />
+            <TextField
+              size="small"
+              label="Description"
+              multiline
+              minRows={2}
+              value={form.description}
+              onChange={(event) => change('description', event.target.value)}
+              error={Boolean(errors.description)}
+              helperText={errors.description || undefined}
+            />
+            {selected ? (
+              <Chip size="small" color={selected.active ? 'success' : 'default'} label={selected.active ? 'Active' : 'Inactive'} sx={{ alignSelf: 'flex-start' }} />
+            ) : null}
+          </>
         )}
       />
     </Stack>

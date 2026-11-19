@@ -33,11 +33,11 @@ function LogRow({ item }) {
       <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
         <Chip size="small" label={item.action} />
         {item.entityType ? <Chip size="small" variant="outlined" label={`${item.entityType}${item.entityId != null ? ` #${item.entityId}` : ''}`} /> : null}
-        <Typography variant="caption" color="text.secondary">{formatTime(item.createdAt)}</Typography>
+        <Typography variant="caption" color="text.secondary">{formatTime(item.occurredAt)}</Typography>
       </Stack>
       <Typography variant="body2" sx={{ mt: 0.5, wordBreak: 'break-word' }}>{item.summary || '-'}</Typography>
       <Typography variant="caption" color="text.secondary">
-        {item.userName || 'System'}{item.userId != null ? ` (#${item.userId})` : ''}
+        {item.actorUserName || 'System'}{item.actorUserId != null ? ` (#${item.actorUserId})` : ''}
       </Typography>
     </Box>
   )
@@ -51,7 +51,8 @@ function SessionRow({ item }) {
         <Chip size="small" color={item.active ? 'success' : 'default'} label={item.active ? 'Active' : item.revokedAt ? 'Revoked' : 'Expired'} />
       </Stack>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-        Issued {formatTime(item.issuedAt)} · Expires {formatTime(item.expiresAt)}
+        Login {formatTime(item.loginAt)} · Expires {formatTime(item.expiresAt)}
+        {item.logoutAt ? ` · Logout ${formatTime(item.logoutAt)}` : ''}
         {item.revokedAt ? ` · Revoked ${formatTime(item.revokedAt)}` : ''}
       </Typography>
     </Box>

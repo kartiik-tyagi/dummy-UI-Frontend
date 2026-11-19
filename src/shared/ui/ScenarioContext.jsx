@@ -164,6 +164,13 @@ export function ScenarioContext() {
             </Typography>
           </Fact>
         )}
+        {game?.dateTime ? (
+          <Fact label="Game time" icon={<SportsEsportsOutlinedIcon fontSize="small" />}>
+            <Typography variant="body2" noWrap>
+              {new Date(game.dateTime).toLocaleString()}
+            </Typography>
+          </Fact>
+        ) : null}
         {game?.moonphases ? (
           <Fact label="Moonphases" icon={<NightlightOutlinedIcon fontSize="small" />}>
             <Typography variant="body2" noWrap>
