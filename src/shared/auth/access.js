@@ -56,7 +56,7 @@ export function sectionsForFunctionalities(functionalities) {
     sections.push({ id: 'scenario', kicker: 'Exercise', label: 'Scenario management', icon: 'flag' })
   }
   if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_GAME)) {
-    sections.push({ id: 'game', kicker: 'Exercise', label: 'Game', icon: 'control' })
+    sections.push({ id: 'game', kicker: 'Exercise', label: 'Game Management', icon: 'control' })
   }
   if (canOpenOrbat(functionalities)) sections.push({ id: 'orbat', kicker: 'ORBAT', label: 'ORBAT', icon: 'orbat' })
   if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_SIDES)) {
