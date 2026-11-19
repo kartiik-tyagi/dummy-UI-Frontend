@@ -87,16 +87,16 @@ export function sectionsForFunctionalities(functionalities) {
 export const SECTION_ROUTE = Object.freeze({
   scenario: '/exercise/scenarios',
   game: '/exercise/games',
+  teams: '/standard/teams',
+  themes: '/standard/themes',
+  'node-types': '/standard/node-types',
 })
 
 /** Which tool panel an application-menu section opens (dock panels). */
 export const SECTION_PANEL = Object.freeze({
   orbat: 'orbat',
-  teams: 'teams',
   users: 'users',
   roles: 'roles',
-  themes: 'themes',
-  'node-types': 'node-types',
   icons: 'icons',
   map: 'map-admin',
   audit: 'audit',

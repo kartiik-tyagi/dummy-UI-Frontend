@@ -1,6 +1,9 @@
 ﻿import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Box } from '@mui/material'
+import { NodeTypeEditorPage, NodeTypesListPage } from '../features/admin/NodeTypePages'
+import { TeamEditorPage, TeamsListPage } from '../features/admin/TeamsPages'
+import { ThemeEditorPage, ThemesListPage } from '../features/admin/ThemesPages'
 import LoginPage from '../features/login/LoginPage'
 import { GameEditorPage, GameListPage } from '../features/scenario/GamePages'
 import { ScenarioEditorPage, ScenarioListPage, ScenarioPreviewPage } from '../features/scenario/ScenarioPages'
@@ -104,6 +107,54 @@ export default function Shell() {
         element={
           <RequireSession>
             <GameEditorPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/standard/teams"
+        element={
+          <RequireSession>
+            <TeamsListPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/standard/teams/:id"
+        element={
+          <RequireSession>
+            <TeamEditorPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/standard/themes"
+        element={
+          <RequireSession>
+            <ThemesListPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/standard/themes/:id"
+        element={
+          <RequireSession>
+            <ThemeEditorPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/standard/node-types"
+        element={
+          <RequireSession>
+            <NodeTypesListPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/standard/node-types/:id"
+        element={
+          <RequireSession>
+            <NodeTypeEditorPage />
           </RequireSession>
         }
       />

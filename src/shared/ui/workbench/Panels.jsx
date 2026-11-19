@@ -1,9 +1,8 @@
 import { Typography } from '@mui/material'
 import { useSessionStore } from '../../../features/session/useSessionStore'
 import { canOpenOrbat } from '../../auth/access'
-import { RolesPanel, TeamsPanel, ThemesPanel, UsersPanel } from '../../../features/admin/AdminPanels'
+import { RolesPanel, UsersPanel } from '../../../features/admin/AdminPanels'
 import OrbatPanel from '../../../features/orbat/OrbatPanel'
-import { NodeTypesPanel } from '../../../features/orbat/NodeTypesPanel'
 import { MapAdminPanel } from '../../../features/map/MapAdminPanel'
 import { ScenarioAdminPanel, GameAdminPanel } from '../../../features/scenario/ExerciseAdminPanels'
 import { AuditPanel } from '../../../features/audit/AuditPanel'
@@ -20,11 +19,8 @@ function Caption({ children }) {
 
 export function PanelBody({ panel }) {
   if (panel === 'filters') return <FilterList />
-  if (panel === 'teams') return <TeamsPanel />
   if (panel === 'users') return <UsersPanel />
   if (panel === 'roles') return <RolesPanel />
-  if (panel === 'themes') return <ThemesPanel />
-  if (panel === 'node-types') return <NodeTypesPanel />
   if (panel === 'orbat') return <OrbatGate />
   if (panel === 'map-admin') return <MapAdminPanel />
   if (panel === 'scenario-admin') return <ScenarioAdminPanel />

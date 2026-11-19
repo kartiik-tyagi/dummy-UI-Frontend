@@ -2,10 +2,6 @@ import { useEffect, useState } from 'react'
 import {
   Button,
   Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   FormControlLabel,
   MenuItem,
@@ -15,12 +11,9 @@ import {
 } from '@mui/material'
 import { del, get, patch, post, put } from '../../shared/api/http'
 import { logger } from '../../shared/lib/logger'
-import { swatchForColour } from '../../shared/api/mappers'
-import { swatches } from '../../shared/theme/swatches'
-import { IconField } from '../../shared/ui/IconPicker'
 import { LoadingState } from '../../shared/ui/LoadingState'
 import { useToastStore } from '../feedback/useToastStore'
-import { asTheme, holderLabel, selectableThemes } from './themeChoices'
+import { asTheme, selectableThemes } from './themeChoices'
 
 function Caption({ children }) {
   return (
@@ -42,16 +35,6 @@ function ThemeField({ themes, value, onChange, holderKind, holderId, label = 'Th
   )
 }
 
-function ColourField({ value, onChange }) {
-  return (
-    <TextField select size="small" label="Map colour" value={value} onChange={onChange}>
-      {swatches.map((swatch) => (
-        <MenuItem key={swatch.id} value={swatch.id}>{swatch.name}</MenuItem>
-      ))}
-    </TextField>
-  )
-}
-
 function useLoader(load, label) {
   const push = useToastStore((state) => state.push)
   const [ready, setReady] = useState(false)
@@ -67,153 +50,6 @@ function useLoader(load, label) {
     }
   }, [tick]) // eslint-disable-line react-hooks/exhaustive-deps
   return { ready, reload: () => setTick((value) => value + 1) }
-}
-
-export function TeamsPanel() {
-  const push = useToastStore((state) => state.push)
-  const [sides, setSides] = useState([])
-  const [themes, setThemes] = useState([])
-  const [draft, setDraft] = useState({ name: '', swatchId: 'blue', icon: '', themeId: '' })
-  const [busy, setBusy] = useState(false)
-  const { ready, reload } = useLoader(async () => {
-    const [sideRows, themeRows] = await Promise.all([get('/sides'), get('/themes')])
-    setSides(sideRows)
-    setThemes(themeRows.map(asTheme))
-  }, 'Teams')
-
-  const countries = sides.filter((side) => side.kind !== 'alliance')
-  const alliances = sides.filter((side) => side.kind === 'alliance')
-
-  const create = async () => {
-    if (!draft.name.trim() || !draft.themeId) return
-    setBusy(true)
-    try {
-      const colour = swatches.find((item) => item.id === draft.swatchId)?.color || '#2f6fed'
-      await post('/sides', {
-        name: draft.name.trim(),
-        description: '',
-        colour,
-        icon: draft.icon || null,
-        themeId: Number(draft.themeId),
-      })
-      logger.info('team.created', { name: draft.name.trim() })
-      setDraft({ name: '', swatchId: 'blue', icon: '', themeId: '' })
-      push('Team created. Its standard ORBAT root is ready.', 'success')
-      reload()
-    } catch (error) {
-      push(error?.message || 'The team could not be created.', 'error')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  if (!ready && !sides.length) return <LoadingState label="Opening teams" />
-
-  return (
-    <Stack spacing={2}>
-      <Caption>A team is a country side. Creating one also creates the standard ORBAT whose root is this side. The same action is available from ORBAT.</Caption>
-      <Typography variant="subtitle2">New team</Typography>
-      <TextField size="small" label="Name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
-      <ColourField value={draft.swatchId} onChange={(event) => setDraft({ ...draft, swatchId: event.target.value })} />
-      <IconField value={draft.icon} onChange={(icon) => setDraft({ ...draft, icon })} />
-      <ThemeField themes={themes} value={draft.themeId} onChange={(event) => setDraft({ ...draft, themeId: event.target.value })} holderKind="SIDE" />
-      <Button variant="contained" disabled={busy || !draft.name.trim() || !draft.themeId} onClick={create}>Create team</Button>
-      <Divider />
-      {countries.map((side) => (
-        <TeamEditor key={side.id} side={side} themes={themes} onChanged={reload} />
-      ))}
-      {alliances.length ? (
-        <>
-          <Divider />
-          <Typography variant="subtitle2">Alliances</Typography>
-          <Caption>An alliance is created inside a game, from the playing ORBAT.</Caption>
-          {alliances.map((side) => (
-            <Typography key={side.id} variant="body2">{side.name}</Typography>
-          ))}
-        </>
-      ) : null}
-    </Stack>
-  )
-}
-
-function TeamEditor({ side, themes, onChanged }) {
-  const push = useToastStore((state) => state.push)
-  const [name, setName] = useState(side.name)
-  const [swatchId, setSwatchId] = useState(swatchForColour(side.colour)?.id || 'custom')
-  const [icon, setIcon] = useState(side.icon || '')
-  const [themeId, setThemeId] = useState(side.themeId == null ? '' : String(side.themeId))
-  const [busy, setBusy] = useState(false)
-  const [confirming, setConfirming] = useState(false)
-  useEffect(() => {
-    setName(side.name)
-    setSwatchId(swatchForColour(side.colour)?.id || 'custom')
-    setIcon(side.icon || '')
-    setThemeId(side.themeId == null ? '' : String(side.themeId))
-  }, [side.id, side.name, side.colour, side.icon, side.themeId])
-
-  const save = async () => {
-    setBusy(true)
-    try {
-      const colour = swatchId === 'custom' ? side.colour : (swatches.find((item) => item.id === swatchId)?.color || side.colour)
-      await put(`/sides/${side.id}`, {
-        name: name.trim(),
-        description: side.description || '',
-        colour,
-        icon: icon || null,
-        themeId: Number(themeId),
-      })
-      push('Team saved.', 'success')
-      onChanged()
-    } catch (error) {
-      push(error?.message || 'The team could not be saved.', 'error')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const remove = async () => {
-    setBusy(true)
-    try {
-      await del(`/sides/${side.id}`)
-      setConfirming(false)
-      push('Team removed.', 'success')
-      onChanged()
-    } catch (error) {
-      push(error?.message || 'The team could not be removed.', 'error')
-      setConfirming(false)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Stack spacing={1}>
-      <Typography variant="subtitle2">{side.name}</Typography>
-      <TextField size="small" label="Name" value={name} onChange={(event) => setName(event.target.value)} />
-      <TextField select size="small" label="Map colour" value={swatchId} onChange={(event) => setSwatchId(event.target.value)}>
-        {swatchId === 'custom' ? <MenuItem value="custom">{side.colour || 'Current colour'}</MenuItem> : null}
-        {swatches.map((swatch) => (
-          <MenuItem key={swatch.id} value={swatch.id}>{swatch.name}</MenuItem>
-        ))}
-      </TextField>
-      <IconField value={icon} onChange={setIcon} />
-      <ThemeField themes={themes} value={themeId} onChange={(event) => setThemeId(event.target.value)} holderKind="SIDE" holderId={side.id} />
-      <Stack direction="row" spacing={1}>
-        <Button size="small" variant="contained" disabled={busy || !name.trim() || !themeId} onClick={save}>Save</Button>
-        <Button size="small" color="error" disabled={busy} onClick={() => setConfirming(true)}>Remove</Button>
-      </Stack>
-      <Dialog open={confirming} onClose={() => setConfirming(false)}>
-        <DialogTitle>Remove team</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">Remove {side.name}? This also removes its standard ORBAT when nobody is marked on it.</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirming(false)}>Cancel</Button>
-          <Button color="error" onClick={remove}>Remove</Button>
-        </DialogActions>
-      </Dialog>
-    </Stack>
-  )
 }
 
 export function UsersPanel() {
@@ -474,65 +310,3 @@ function RoleEditor({ role, catalog, onChanged }) {
   )
 }
 
-export function ThemesPanel() {
-  const push = useToastStore((state) => state.push)
-  const [rows, setRows] = useState([])
-  const [draft, setDraft] = useState({ id: null, name: '', description: '', defaultTheme: false, configJson: null })
-  const [busy, setBusy] = useState(false)
-  const reload = async () => setRows((await get('/themes')).map(asTheme))
-  useEffect(() => {
-    reload().catch((error) => push(error.message, 'error'))
-  }, [push])
-
-  const save = async () => {
-    setBusy(true)
-    try {
-      const body = {
-        name: draft.name.trim(),
-        description: draft.description || '',
-        defaultTheme: Boolean(draft.defaultTheme),
-        configJson: draft.configJson,
-      }
-      if (!body.name) throw new Error('Enter a theme name.')
-      if (draft.id) await put(`/themes/${draft.id}`, body)
-      else await post('/themes', body)
-      setDraft({ id: null, name: '', description: '', defaultTheme: false, configJson: null })
-      await reload()
-      push(draft.id ? 'Theme saved.' : 'Theme created. Allot it from Teams or Users.', 'success')
-    } catch (error) {
-      push(error?.message || 'The theme could not be saved.', 'error')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const remove = async (id) => {
-    setBusy(true)
-    try {
-      await del(`/themes/${id}`)
-      await reload()
-      push('Theme removed.', 'success')
-    } catch (error) {
-      push(error?.message || 'The theme could not be removed.', 'error')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Stack spacing={1.5}>
-      <Caption>A theme is allotted to one team or one user. Members of a team display the team theme until a user override is allotted. APEX&apos;s theme is the login theme.</Caption>
-      {rows.map((row) => (
-        <Stack key={row.id} direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-          <Typography variant="body2" sx={{ flex: 1, minWidth: 120 }}>{row.name}</Typography>
-          <Caption>{holderLabel(row)}</Caption>
-          <Button size="small" onClick={() => setDraft({ id: row.id, name: row.name, description: row.description, defaultTheme: row.defaultTheme, configJson: row.configJson })}>Edit</Button>
-          <Button size="small" color="error" disabled={busy || row.holderKind !== 'FREE'} onClick={() => remove(row.id)}>Remove</Button>
-        </Stack>
-      ))}
-      <TextField size="small" label="Theme name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
-      <TextField size="small" label="Description" value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
-      <Button disabled={busy || !draft.name.trim()} onClick={save}>{draft.id ? 'Save theme' : 'Add theme'}</Button>
-    </Stack>
-  )
-}
