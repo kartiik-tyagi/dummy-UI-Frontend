@@ -57,7 +57,7 @@ export function ToolPanel({ panel, onClose }) {
           flex: 1,
           minHeight: 0,
           pt: panel === 'filters' || panel === 'map-admin' ? 0.5 : 1.5,
-          ...(panel === 'filters'
+          ...(panel === 'filters' || panel === 'map-admin'
             ? {
                 scrollbarWidth: 'none',
                 msOverflowStyle: 'none',
