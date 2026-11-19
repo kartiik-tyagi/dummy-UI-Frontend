@@ -77,10 +77,6 @@ function ScenarioList() {
 
   return (
     <Stack spacing={2}>
-      <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 62 * 8 }}>
-        Define the plot for the exercise. Narratives are rich text — bold, lists, and emphasis are stored
-        and shown the same way everywhere in the product. Activate one scenario for the open exercise.
-      </Typography>
       {!items.length ? (
         <Box
           sx={{
