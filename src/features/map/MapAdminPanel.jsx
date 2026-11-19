@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
+  Box,
   Button,
   Chip,
   Divider,
@@ -11,11 +12,16 @@ import {
   MenuItem,
   Stack,
   Switch,
-  Tab,
-  Tabs,
   TextField,
   Typography,
 } from '@mui/material'
+import AddIcon from '@mui/icons-material/Add'
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined'
+import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined'
+import MapOutlinedIcon from '@mui/icons-material/MapOutlined'
+import MyLocationOutlinedIcon from '@mui/icons-material/MyLocationOutlined'
+import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
+import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined'
 import { del, get, post, put } from '../../shared/api/http'
 import { EMPTY_LIST } from '../../shared/lib/empty'
 import { logger } from '../../shared/lib/logger'
@@ -36,6 +42,12 @@ const LAYER_TEXT = [['code', 'Code'], ['label', 'Label'], ['groupName', 'Group']
 const LAYER_NUMBER = [['sortOrder', 'Sort order'], ['defaultOpacity', 'Default opacity (0-1)'], ['minZoom', 'Min zoom'], ['maxZoom', 'Max zoom']]
 const LAYER_FLAGS = [['transparent', 'Transparent'], ['baseLayer', 'Base layer'], ['defaultVisible', 'Visible by default'], ['active', 'Active']]
 const VIEW_NUMBER = [['centerLon', 'Center longitude'], ['centerLat', 'Center latitude'], ['zoom', 'Zoom'], ['minZoom', 'Min zoom'], ['maxZoom', 'Max zoom']]
+
+const TABS = [
+  { id: 'servers', label: 'Servers', icon: StorageOutlinedIcon },
+  { id: 'layers', label: 'Layers', icon: LayersOutlinedIcon },
+  { id: 'view', label: 'Home view', icon: MyLocationOutlinedIcon },
+]
 
 const toNumber = (value) => (value === '' || value === null || value === undefined || Number.isNaN(Number(value)) ? null : Number(value))
 const orEmpty = (record, fallback) => {
@@ -64,8 +76,37 @@ function Field({ name, label, form, errors, onChange, ...rest }) {
 function Flag({ name, label, form, onChange }) {
   return (
     <FormControlLabel
-      label={label}
+      label={<Typography variant="body2">{label}</Typography>}
       control={<Switch size="small" checked={Boolean(form[name])} onChange={(event) => onChange(name, event.target.checked)} />}
+      sx={{ mr: 2, ml: 0 }}
+    />
+  )
+}
+
+function SectionLabel({ children }) {
+  return (
+    <Typography
+      variant="overline"
+      color="text.secondary"
+      sx={{ letterSpacing: '0.1em', display: 'block', mb: 1, mt: 0.5 }}
+    >
+      {children}
+    </Typography>
+  )
+}
+
+function StatusDot({ ok }) {
+  return (
+    <Box
+      component="span"
+      sx={{
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        bgcolor: ok ? 'success.main' : 'text.disabled',
+        display: 'inline-block',
+        flexShrink: 0,
+      }}
     />
   )
 }
@@ -160,31 +201,141 @@ function useResource(path, empty, toBody, label) {
   return { items, selectedId, form, errors, message, busy, select, change, save, remove }
 }
 
-function ResourceLayout({ resource, title, primary, secondary, children, confirmDelete, setConfirmDelete, name }) {
+function ResourceLayout({ resource, title, primary, secondary, status, children, confirmDelete, setConfirmDelete, name }) {
   const { items, selectedId, message, busy, select, save, remove } = resource
   if (!items) return <LoadingState label={`Loading ${title}`} />
+
   return (
-    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-      <Stack sx={{ width: { sm: 220, md: 260 }, flexShrink: 0, maxWidth: '100%' }} spacing={1}>
-        <Button size="small" variant="outlined" onClick={() => select(null)}>New</Button>
-        <List dense disablePadding aria-label={title} sx={{ maxHeight: { xs: 180, sm: 420 }, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
-          {items.map((item) => (
-            <ListItemButton key={item.id} selected={item.id === selectedId} onClick={() => select(item)}>
-              <ListItemText primary={primary(item)} secondary={secondary(item)} slotProps={{ primary: { noWrap: true }, secondary: { noWrap: true } }} />
-            </ListItemButton>
-          ))}
-          {!items.length ? <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>Nothing yet.</Typography> : null}
+    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: 'stretch' }}>
+      <Box
+        sx={{
+          width: { md: 240 },
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.25,
+          minWidth: 0,
+        }}
+      >
+        <Button
+          size="small"
+          variant={selectedId === 'new' ? 'contained' : 'outlined'}
+          startIcon={<AddIcon />}
+          onClick={() => select(null)}
+          sx={{ textTransform: 'none', justifyContent: 'flex-start', fontWeight: 600 }}
+        >
+          New {name}
+        </Button>
+        <List
+          dense
+          disablePadding
+          aria-label={title}
+          sx={{
+            flex: 1,
+            maxHeight: { xs: 200, md: 440 },
+            overflow: 'auto',
+            borderRadius: 2,
+            border: 1,
+            borderColor: 'divider',
+            bgcolor: 'background.default',
+            p: 0.75,
+          }}
+        >
+          {items.map((item) => {
+            const selected = item.id === selectedId
+            return (
+              <ListItemButton
+                key={item.id}
+                selected={selected}
+                onClick={() => select(item)}
+                sx={{
+                  borderRadius: 1.5,
+                  mb: 0.5,
+                  px: 1.25,
+                  py: 1,
+                  alignItems: 'flex-start',
+                  border: 1,
+                  borderColor: selected ? 'primary.main' : 'transparent',
+                  bgcolor: selected ? 'action.selected' : 'background.paper',
+                  '&.Mui-selected': { bgcolor: 'action.selected' },
+                  '&.Mui-selected:hover': { bgcolor: 'action.selected' },
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ width: '100%', minWidth: 0 }}>
+                  {status ? <Box sx={{ mt: 0.7 }}>{status(item)}</Box> : null}
+                  <ListItemText
+                    primary={primary(item)}
+                    secondary={secondary(item)}
+                    slotProps={{
+                      primary: { noWrap: true, fontWeight: selected ? 600 : 500, fontSize: '0.9rem' },
+                      secondary: { noWrap: true, fontSize: '0.75rem' },
+                    }}
+                    sx={{ my: 0, minWidth: 0 }}
+                  />
+                </Stack>
+              </ListItemButton>
+            )
+          })}
+          {!items.length ? (
+            <Box sx={{ p: 2, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Nothing here yet. Create the first {name}.
+              </Typography>
+            </Box>
+          ) : null}
         </List>
-      </Stack>
-      <Stack spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="subtitle2">{selectedId === 'new' ? `New ${name}` : `Edit ${name}`}</Typography>
-        {message ? <Alert severity="error">{message}</Alert> : null}
-        {children}
-        <Stack direction="row" spacing={1}>
-          <Button variant="contained" size="small" disabled={busy} onClick={save}>{busy ? 'Saving' : 'Save'}</Button>
-          {selectedId !== 'new' ? <Button color="error" size="small" disabled={busy} onClick={() => setConfirmDelete(true)}>Delete</Button> : null}
+      </Box>
+
+      <Box
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          borderRadius: 2,
+          border: 1,
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          p: { xs: 1.75, sm: 2.25 },
+        }}
+      >
+        <Stack spacing={1.75}>
+          <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+            <Typography variant="subtitle1" sx={{ fontWeight: 650, flex: 1, minWidth: 0 }}>
+              {selectedId === 'new' ? `New ${name}` : `Edit ${name}`}
+            </Typography>
+            {selectedId !== 'new' ? <Chip size="small" variant="outlined" label={`ID ${selectedId}`} /> : null}
+          </Stack>
+          <Divider />
+          {message ? <Alert severity="error">{message}</Alert> : null}
+          {children}
+          <Divider />
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Button
+              variant="contained"
+              size="small"
+              disabled={busy}
+              startIcon={<SaveOutlinedIcon />}
+              onClick={save}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              {busy ? 'Saving…' : 'Save'}
+            </Button>
+            {selectedId !== 'new' ? (
+              <Button
+                color="error"
+                size="small"
+                variant="outlined"
+                disabled={busy}
+                startIcon={<DeleteOutlinedIcon />}
+                onClick={() => setConfirmDelete(true)}
+                sx={{ textTransform: 'none' }}
+              >
+                Delete
+              </Button>
+            ) : null}
+          </Stack>
         </Stack>
-      </Stack>
+      </Box>
+
       <ConfirmDialog
         open={confirmDelete}
         title={`Delete ${name}`}
@@ -216,17 +367,31 @@ function ServersTab() {
       title="GIS servers"
       name="server"
       primary={(item) => item.name || item.code}
-      secondary={(item) => `${item.code}${item.defaultServer ? ' · default' : ''}${item.enabled === false ? ' · disabled' : ''}`}
+      secondary={(item) => item.code}
+      status={(item) => <StatusDot ok={item.enabled !== false} />}
       confirmDelete={confirmDelete}
       setConfirmDelete={setConfirmDelete}
     >
-      {SERVER_TEXT.map(([name, label]) => (
-        <Field key={name} name={name} label={label} form={form} errors={errors} onChange={change} />
-      ))}
-      <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap' }}>
+      <SectionLabel>Identity</SectionLabel>
+      <Stack spacing={1.5}>
+        {SERVER_TEXT.slice(0, 2).map(([name, label]) => (
+          <Field key={name} name={name} label={label} form={form} errors={errors} onChange={change} />
+        ))}
+      </Stack>
+      <SectionLabel>Endpoints</SectionLabel>
+      <Stack spacing={1.5}>
+        {SERVER_TEXT.slice(2).map(([name, label]) => (
+          <Field key={name} name={name} label={label} form={form} errors={errors} onChange={change} />
+        ))}
+      </Stack>
+      <SectionLabel>Options</SectionLabel>
+      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         <Flag name="enabled" label="Enabled" form={form} onChange={change} />
         <Flag name="defaultServer" label="Default server" form={form} onChange={change} />
       </Stack>
+      {form.defaultServer ? (
+        <Chip size="small" color="primary" variant="outlined" label="This is the default GIS server" sx={{ alignSelf: 'flex-start' }} />
+      ) : null}
     </ResourceLayout>
   )
 }
@@ -254,24 +419,29 @@ function LayersTab({ servers }) {
       title="Layers"
       name="layer"
       primary={(item) => item.label || item.code}
-      secondary={(item) => `${item.code}${item.groupName ? ` · ${item.groupName}` : ''}${item.active === false ? ' · inactive' : ''}`}
+      secondary={(item) => `${item.code}${item.groupName ? ` · ${item.groupName}` : ''}`}
+      status={(item) => <StatusDot ok={item.active !== false} />}
       confirmDelete={confirmDelete}
       setConfirmDelete={setConfirmDelete}
     >
-      <Field name="gisServerId" label="GIS server" select form={form} errors={errors} onChange={change}>
-        {servers.map((server) => (
-          <MenuItem key={server.id} value={server.id}>{server.name || server.code}</MenuItem>
-        ))}
-      </Field>
-      {LAYER_TEXT.map(([name, label]) => (
-        <Field key={name} name={name} label={label} form={form} errors={errors} onChange={change} />
-      ))}
-      <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
-        {LAYER_NUMBER.map(([name, label]) => (
-          <Field key={name} name={name} label={label} type="number" form={form} errors={errors} onChange={change} sx={{ width: 170 }} />
+      <SectionLabel>Layer</SectionLabel>
+      <Stack spacing={1.5}>
+        <Field name="gisServerId" label="GIS server" select form={form} errors={errors} onChange={change}>
+          {servers.map((server) => (
+            <MenuItem key={server.id} value={server.id}>{server.name || server.code}</MenuItem>
+          ))}
+        </Field>
+        {LAYER_TEXT.map(([name, label]) => (
+          <Field key={name} name={name} label={label} form={form} errors={errors} onChange={change} />
         ))}
       </Stack>
-      <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap' }}>
+      <SectionLabel>Display</SectionLabel>
+      <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
+        {LAYER_NUMBER.map(([name, label]) => (
+          <Field key={name} name={name} label={label} type="number" form={form} errors={errors} onChange={change} sx={{ width: 160 }} />
+        ))}
+      </Stack>
+      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         {LAYER_FLAGS.map(([name, label]) => (
           <Flag key={name} name={name} label={label} form={form} onChange={change} />
         ))}
@@ -335,21 +505,51 @@ function ViewDefaultsTab({ servers }) {
   }
 
   return (
-    <Stack spacing={1.5} sx={{ maxWidth: 520 }}>
-      {message ? <Alert severity="error">{message}</Alert> : null}
-      <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
-        {VIEW_NUMBER.map(([name, label]) => (
-          <Field key={name} name={name} label={label} type="number" form={form} errors={errors} onChange={change} sx={{ width: 160 }} />
-        ))}
+    <Box
+      sx={{
+        borderRadius: 2,
+        border: 1,
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+        p: { xs: 1.75, sm: 2.25 },
+        maxWidth: 560,
+      }}
+    >
+      <Stack spacing={1.75}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 650 }}>
+          Home view
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Centre, zoom, and default server used when the map opens or when Home extent is pressed.
+        </Typography>
+        <Divider />
+        {message ? <Alert severity="error">{message}</Alert> : null}
+        <SectionLabel>Centre and zoom</SectionLabel>
+        <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
+          {VIEW_NUMBER.map(([name, label]) => (
+            <Field key={name} name={name} label={label} type="number" form={form} errors={errors} onChange={change} sx={{ width: 150 }} />
+          ))}
+        </Stack>
+        <SectionLabel>Default server</SectionLabel>
+        <Field name="defaultGisServerId" label="Default GIS server" select form={form} errors={errors} onChange={change}>
+          <MenuItem value="">None</MenuItem>
+          {servers.map((server) => (
+            <MenuItem key={server.id} value={server.id}>{server.name || server.code}</MenuItem>
+          ))}
+        </Field>
+        <Divider />
+        <Button
+          variant="contained"
+          size="small"
+          disabled={busy}
+          startIcon={<SaveOutlinedIcon />}
+          onClick={save}
+          sx={{ textTransform: 'none', fontWeight: 600, alignSelf: 'flex-start' }}
+        >
+          {busy ? 'Saving…' : 'Save home view'}
+        </Button>
       </Stack>
-      <Field name="defaultGisServerId" label="Default GIS server" select form={form} errors={errors} onChange={change}>
-        <MenuItem value="">None</MenuItem>
-        {servers.map((server) => (
-          <MenuItem key={server.id} value={server.id}>{server.name || server.code}</MenuItem>
-        ))}
-      </Field>
-      <Stack direction="row"><Button variant="contained" size="small" disabled={busy} onClick={save}>{busy ? 'Saving' : 'Save'}</Button></Stack>
-    </Stack>
+    </Box>
   )
 }
 
@@ -358,7 +558,6 @@ export function MapAdminPanel() {
   const [tab, setTab] = useState('servers')
   const [servers, setServers] = useState(EMPTY_LIST)
 
-  // Server choices for the layer and view-default selects; refreshed when the tab changes.
   useEffect(() => {
     let live = true
     get('/map/servers')
@@ -370,25 +569,77 @@ export function MapAdminPanel() {
   }, [tab])
 
   return (
-    <Stack spacing={1.5} sx={{ minWidth: 0 }}>
-      <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-        <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-          Configure GeoServer endpoints, WMS layers, and the home view.
-        </Typography>
-        <Chip size="small" variant="outlined" label={`${servers.length} server${servers.length === 1 ? '' : 's'}`} />
+    <Stack spacing={2} sx={{ minWidth: 0 }}>
+      <Stack direction="row" spacing={1.5} alignItems="flex-start">
+        <Box
+          sx={{
+            width: 40,
+            height: 40,
+            borderRadius: 2,
+            display: 'grid',
+            placeItems: 'center',
+            bgcolor: 'action.hover',
+            color: 'primary.main',
+            flexShrink: 0,
+          }}
+        >
+          <MapOutlinedIcon fontSize="small" />
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 650, lineHeight: 1.3 }}>
+            Map catalog
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
+            GeoServer endpoints, WMS layers, and the map home view.
+          </Typography>
+        </Box>
+        <Chip
+          size="small"
+          variant="outlined"
+          label={`${servers.length} server${servers.length === 1 ? '' : 's'}`}
+          sx={{ flexShrink: 0 }}
+        />
       </Stack>
-      <Tabs
-        value={tab}
-        onChange={(_, value) => setTab(value)}
-        variant="scrollable"
-        allowScrollButtonsMobile
-        sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, textTransform: 'none' } }}
+
+      <Stack
+        direction="row"
+        spacing={0.75}
+        useFlexGap
+        sx={{
+          p: 0.5,
+          borderRadius: 2,
+          bgcolor: 'action.hover',
+          flexWrap: 'wrap',
+        }}
       >
-        <Tab value="servers" label="Servers" />
-        <Tab value="layers" label="Layers" />
-        <Tab value="view" label="View defaults" />
-      </Tabs>
-      <Divider />
+        {TABS.map((entry) => {
+          const Icon = entry.icon
+          const selected = tab === entry.id
+          return (
+            <Button
+              key={entry.id}
+              size="small"
+              onClick={() => setTab(entry.id)}
+              startIcon={<Icon fontSize="small" />}
+              sx={{
+                textTransform: 'none',
+                fontWeight: selected ? 650 : 500,
+                px: 1.5,
+                py: 0.75,
+                borderRadius: 1.5,
+                color: selected ? 'primary.contrastText' : 'text.primary',
+                bgcolor: selected ? 'primary.main' : 'transparent',
+                '&:hover': {
+                  bgcolor: selected ? 'primary.dark' : 'action.selected',
+                },
+              }}
+            >
+              {entry.label}
+            </Button>
+          )
+        })}
+      </Stack>
+
       {tab === 'servers' ? <ServersTab /> : null}
       {tab === 'layers' ? <LayersTab servers={servers} /> : null}
       {tab === 'view' ? <ViewDefaultsTab servers={servers} /> : null}

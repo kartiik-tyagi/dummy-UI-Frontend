@@ -206,6 +206,17 @@ export const useSessionStore = create((set, get) => ({
         },
       }
     }),
+  setAllFilters: (visible) =>
+    set((state) => {
+      if (!state.session?.filters?.length) return state
+      return {
+        phaseId: null,
+        session: {
+          ...state.session,
+          filters: state.session.filters.map((filter) => ({ ...filter, visible: Boolean(visible) })),
+        },
+      }
+    }),
   applyPhase: (phaseId) =>
     set((state) => {
       const phase = state.session?.phases.find((item) => item.id === phaseId)

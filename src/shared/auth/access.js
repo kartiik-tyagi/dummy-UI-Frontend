@@ -40,6 +40,9 @@ export function navigationForFunctionalities(functionalities) {
   const groups = []
   if (hasFunctionality(functionalities, FunctionalityCodes.MAP_VIEW)) {
     const mapItems = [item('filters', 'Map filters', 'layers'), item('extent', 'Home extent', 'extent')]
+    if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_MAP)) {
+      mapItems.push(item('map-admin', 'Map catalog', 'settings'))
+    }
     groups.push({ id: 'map', label: 'Map', items: mapItems })
   }
 
@@ -71,9 +74,6 @@ export function sectionsForFunctionalities(functionalities) {
   if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_ROLES)) {
     sections.push({ id: 'roles', kicker: 'Access', label: 'Roles', icon: 'roles' })
   }
-  if (hasFunctionality(functionalities, FunctionalityCodes.MANAGE_MAP)) {
-    sections.push({ id: 'map', kicker: 'Records', label: 'Map catalog', icon: 'settings' })
-  }
   if (hasFunctionality(functionalities, FunctionalityCodes.VIEW_AUDIT)) {
     sections.push({ id: 'audit', kicker: 'Records', label: 'Audit', icon: 'sessions' })
   }
@@ -98,6 +98,5 @@ export const SECTION_PANEL = Object.freeze({
   users: 'users',
   roles: 'roles',
   icons: 'icons',
-  map: 'map-admin',
   audit: 'audit',
 })
