@@ -119,6 +119,16 @@ export const useSessionStore = create((set, get) => ({
     const result = await requestScenarioChange({ userId, scenarioId: clearing ? '' : scenarioId })
     set((state) => {
       if (!state.session) return state
+      const nextGames = (result.games || state.session.games).map((item) => ({
+        ...item,
+        // Clearing or switching scenario always drops the active game.
+        active: clearing ? false : Boolean(item.active) && item.scenarioId === result.activeScenarioId,
+      }))
+      const nextActiveGame = clearing
+        ? { id: '', name: '' }
+        : result.activeGame?.id
+          ? { id: result.activeGame.id, name: result.activeGame.name || '' }
+          : { id: '', name: '' }
       return {
         session: {
           ...state.session,
@@ -130,8 +140,8 @@ export const useSessionStore = create((set, get) => ({
               ...item,
               active: Boolean(result.activeScenarioId) && item.id === result.activeScenarioId,
             })),
-          games: result.games || state.session.games,
-          activeGame: result.activeGame || { id: '', name: '' },
+          games: nextGames,
+          activeGame: nextActiveGame,
         },
       }
     })
@@ -144,31 +154,38 @@ export const useSessionStore = create((set, get) => ({
       logger.warn('game.change_rejected', { userId, gameId: gameId || null, code: 'FORBIDDEN' })
       throw new ApiError('This user cannot change the game.', 'FORBIDDEN')
     }
-    const game = (session.games || []).find((item) => item.id === gameId)
-    if (!game) {
-      logger.warn('game.change_rejected', { userId, gameId: gameId || null, code: 'NOT_FOUND' })
-      throw new ApiError('That game is not in this exercise.', 'NOT_FOUND')
+    const clearing = !gameId
+    if (clearing && !session.activeGame?.id) return
+    if (!clearing) {
+      const game = (session.games || []).find((item) => item.id === gameId)
+      if (!game) {
+        logger.warn('game.change_rejected', { userId, gameId: gameId || null, code: 'NOT_FOUND' })
+        throw new ApiError('That game is not in this exercise.', 'NOT_FOUND')
+      }
+      if (!game.open) {
+        logger.warn('game.change_rejected', { userId, gameId, code: 'CLOSED' })
+        throw new ApiError('That game is closed.', 'CLOSED')
+      }
+      if (gameId === session.activeGame.id) return
     }
-    if (!game.open) {
-      logger.warn('game.change_rejected', { userId, gameId, code: 'CLOSED' })
-      throw new ApiError('That game is closed.', 'CLOSED')
-    }
-    if (gameId === session.activeGame.id) return
     if (status === 'running' || status === 'paused') {
-      logger.warn('game.change_rejected', { userId, gameId, code: 'GAME_IN_PROGRESS' })
+      logger.warn('game.change_rejected', { userId, gameId: gameId || null, code: 'GAME_IN_PROGRESS' })
       throw new ApiError('End the game before changing the game.', 'GAME_IN_PROGRESS')
     }
-    const result = await requestGameChange({ userId, gameId })
+    const result = await requestGameChange({ userId, gameId: clearing ? '' : gameId })
     set((state) => {
       if (!state.session) return state
       return {
         session: {
           ...state.session,
-          activeGame: { id: result.activeGameId, name: result.name },
+          activeGame: { id: result.activeGameId || '', name: result.name || '' },
           activeScenarioId: result.activeScenarioId || state.session.activeScenarioId,
           selectedScenarioId: result.activeScenarioId || state.session.selectedScenarioId,
           scenarios: result.scenarios || state.session.scenarios,
-          games: result.games || state.session.games,
+          games: (result.games || state.session.games).map((item) => ({
+            ...item,
+            active: Boolean(result.activeGameId) && item.id === result.activeGameId,
+          })),
         },
       }
     })

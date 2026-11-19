@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert,
   Box,
   Button,
   Chip,
-  Divider,
   Stack,
   TextField,
   Typography,
@@ -13,8 +12,10 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined'
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
 import SportsEsportsOutlinedIcon from '@mui/icons-material/SportsEsportsOutlined'
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import { del, get, post, put } from '../../shared/api/http'
 import { EMPTY_LIST } from '../../shared/lib/empty'
 import { logger } from '../../shared/lib/logger'
@@ -25,7 +26,7 @@ import { RichTextView, richTextPlain } from '../../shared/ui/richtext/RichTextVi
 import { useToastStore } from '../feedback/useToastStore'
 import { useSessionStore } from '../session/useSessionStore'
 import { ExerciseLayout } from './ExerciseLayout'
-import { ScenarioAttachment } from './ScenarioAttachment'
+import { ScenarioAttachment, uploadAttachment } from './ScenarioAttachment'
 
 const EMPTY = {
   name: '',
@@ -41,6 +42,8 @@ function ScenarioList() {
   const refreshSession = useSessionStore((state) => state.refresh)
   const [items, setItems] = useState(null)
   const [activatingId, setActivatingId] = useState(null)
+  const [deleting, setDeleting] = useState(null)
+  const [busyDelete, setBusyDelete] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -57,9 +60,7 @@ function ScenarioList() {
     load()
   }, [load])
 
-  const activate = async (event, item) => {
-    event.preventDefault()
-    event.stopPropagation()
+  const activate = async (item) => {
     if (item.active || activatingId) return
     setActivatingId(item.id)
     try {
@@ -70,6 +71,22 @@ function ScenarioList() {
       push(error?.message || 'The scenario could not be activated.', 'error')
     } finally {
       setActivatingId(null)
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!deleting) return
+    setBusyDelete(true)
+    try {
+      await del(`/scenarios/${deleting.id}`)
+      await refreshSession()
+      push('Scenario deleted.', 'success')
+      setDeleting(null)
+      await load()
+    } catch (error) {
+      push(error?.message || 'The scenario could not be deleted.', 'error')
+    } finally {
+      setBusyDelete(false)
     }
   }
 
@@ -89,10 +106,10 @@ function ScenarioList() {
             borderRadius: 2,
           }}
         >
-          <Typography variant="h6" sx={{ mb: 1 }}>
+          <Typography variant="h6" sx={{ mb: 1, color: 'text.primary' }}>
             No scenarios yet
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+          <Typography variant="body2" sx={{ mb: 2.5, color: 'text.secondary' }}>
             Create the first scenario to open games against it.
           </Typography>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/exercise/scenarios/new')}>
@@ -112,40 +129,156 @@ function ScenarioList() {
                 bgcolor: 'background.paper',
               }}
             >
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }} sx={{ mb: 0.75 }}>
-                <Box
-                  component={RouterLink}
-                  to={`/exercise/scenarios/${item.id}`}
-                  sx={{ flex: 1, minWidth: 0, textDecoration: 'none', color: 'inherit' }}
-                >
-                  <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.05rem' }}>
-                    {item.name}
-                  </Typography>
-                </Box>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }} flexWrap="wrap" useFlexGap>
+                <Typography variant="h6" sx={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: '1.05rem', color: 'text.primary' }}>
+                  {item.name}
+                </Typography>
                 {item.active ? <Chip size="small" color="success" label="Active" /> : null}
+              </Stack>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
+                {richTextPlain(item.generalIdea, 140) || 'No general idea yet'}
+              </Typography>
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<VisibilityOutlinedIcon />}
+                  onClick={() => navigate(`/exercise/scenarios/${item.id}/preview`)}
+                >
+                  Preview
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditOutlinedIcon />}
+                  onClick={() => navigate(`/exercise/scenarios/${item.id}`)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<SportsEsportsOutlinedIcon />}
+                  onClick={() => navigate(`/exercise/games?scenarioId=${item.id}`)}
+                >
+                  Manage games
+                </Button>
                 <Button
                   size="small"
                   variant={item.active ? 'outlined' : 'contained'}
                   startIcon={<CheckCircleOutlinedIcon />}
                   disabled={Boolean(item.active) || activatingId != null}
-                  onClick={(event) => activate(event, item)}
+                  onClick={() => activate(item)}
                 >
                   {item.active ? 'Active' : activatingId === item.id ? 'Activating…' : 'Activate'}
                 </Button>
+                <Button
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  startIcon={<DeleteOutlinedIcon />}
+                  disabled={Boolean(item.active) || busyDelete}
+                  onClick={() => setDeleting(item)}
+                >
+                  Delete
+                </Button>
               </Stack>
-              <Typography
-                component={RouterLink}
-                to={`/exercise/scenarios/${item.id}`}
-                variant="body2"
-                color="text.secondary"
-                sx={{ textDecoration: 'none', display: 'block' }}
-              >
-                {richTextPlain(item.generalIdea, 140) || 'No general idea yet'}
-              </Typography>
             </Box>
           ))}
         </Stack>
       )}
+
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        title="Delete this scenario?"
+        message={
+          deleting
+            ? `“${deleting.name}” and its games will be removed. The active scenario cannot be deleted.`
+            : ''
+        }
+        confirmLabel="Delete"
+        busy={busyDelete}
+        onClose={() => {
+          if (!busyDelete) setDeleting(null)
+        }}
+        onConfirm={confirmDelete}
+      />
+    </Stack>
+  )
+}
+
+function ScenarioPreview() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const push = useToastStore((state) => state.push)
+  const [row, setRow] = useState(null)
+
+  useEffect(() => {
+    let live = true
+    get(`/scenarios/${id}`)
+      .then((data) => {
+        if (live) setRow(data)
+      })
+      .catch((error) => {
+        if (!live) return
+        push(error?.message || 'Scenario not found.', 'error')
+        navigate('/exercise/scenarios', { replace: true })
+      })
+    return () => {
+      live = false
+    }
+  }, [id, navigate, push])
+
+  if (!row) return <LoadingState label="Opening scenario" />
+
+  return (
+    <Stack spacing={2.5}>
+      <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+        <Typography variant="h5" sx={{ flex: 1, fontWeight: 600, color: 'text.primary' }}>
+          {row.name}
+        </Typography>
+        {row.active ? <Chip color="success" label="Active exercise" /> : null}
+      </Stack>
+
+      {[
+        ['General idea', row.generalIdea],
+        ['Opening narrative', row.openingNarrative],
+        ['Special idea', row.specialIdea],
+      ].map(([label, html]) => (
+        <Box
+          key={label}
+          sx={{
+            p: 2,
+            borderRadius: 2,
+            border: 1,
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+          }}
+        >
+          <Typography variant="overline" sx={{ letterSpacing: '0.12em', color: 'text.secondary' }}>
+            {label}
+          </Typography>
+          <Box sx={{ mt: 1 }}>
+            <RichTextView html={html} />
+          </Box>
+        </Box>
+      ))}
+
+      <ScenarioAttachment scenarioId={id} fileName={row.attachedFile || ''} disabled />
+
+      <Stack direction="row" spacing={1} justifyContent="flex-end" useFlexGap flexWrap="wrap">
+        <Button onClick={() => navigate('/exercise/scenarios')}>Back to list</Button>
+        <Button
+          variant="outlined"
+          startIcon={<SportsEsportsOutlinedIcon />}
+          onClick={() => navigate(`/exercise/games?scenarioId=${id}`)}
+        >
+          Manage games
+        </Button>
+        <Button variant="contained" startIcon={<EditOutlinedIcon />} onClick={() => navigate(`/exercise/scenarios/${id}`)}>
+          Edit
+        </Button>
+      </Stack>
     </Stack>
   )
 }
@@ -156,9 +289,9 @@ function ScenarioEditor() {
   const navigate = useNavigate()
   const push = useToastStore((state) => state.push)
   const refreshSession = useSessionStore((state) => state.refresh)
-  const changeScenario = useSessionStore((state) => state.changeScenario)
   const [form, setForm] = useState(EMPTY)
   const [attachedFile, setAttachedFile] = useState('')
+  const [pendingFile, setPendingFile] = useState(null)
   const [active, setActive] = useState(false)
   const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
@@ -170,6 +303,7 @@ function ScenarioEditor() {
     if (isNew) {
       setForm(EMPTY)
       setAttachedFile('')
+      setPendingFile(null)
       setActive(false)
       setReady(true)
       return
@@ -215,8 +349,20 @@ function ScenarioEditor() {
       if (isNew) {
         const created = await post('/scenarios', body)
         logger.info('scenario.created', { id: created.id })
+        if (pendingFile) {
+          try {
+            await uploadAttachment(created.id, pendingFile)
+            logger.info('scenario.attachment.uploaded', { id: created.id, file: pendingFile.name })
+          } catch (uploadError) {
+            await refreshSession()
+            push('Scenario created, but the attachment could not be uploaded.', 'warning')
+            push(uploadError?.message || 'Attachment upload failed.', 'error')
+            navigate(`/exercise/scenarios/${created.id}`, { replace: true })
+            return
+          }
+        }
         await refreshSession()
-        push('Scenario created.', 'success')
+        push(pendingFile ? 'Scenario created with attachment.' : 'Scenario created.', 'success')
         navigate(`/exercise/scenarios/${created.id}`, { replace: true })
       } else {
         await put(`/scenarios/${id}`, body)
@@ -297,71 +443,28 @@ function ScenarioEditor() {
       <ScenarioAttachment
         scenarioId={isNew ? null : id}
         fileName={attachedFile}
+        pendingFile={isNew ? pendingFile : null}
+        onPendingChange={isNew ? setPendingFile : undefined}
         disabled={busy}
         onChanged={(name) => setAttachedFile(name || '')}
       />
 
-      {!isNew ? (
-        <>
-          <Divider />
-          <Box>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.12em' }}>
-              Preview
-            </Typography>
-            <Box sx={{ mt: 1, p: 2, borderRadius: 2, border: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
-              <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
-                General idea
-              </Typography>
-              <RichTextView html={form.generalIdea} />
-            </Box>
-          </Box>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <Button
-              variant={active ? 'outlined' : 'contained'}
-              startIcon={<CheckCircleOutlinedIcon />}
-              disabled={busy || active}
-              onClick={async () => {
-                setBusy(true)
-                try {
-                  await changeScenario(String(id))
-                  setActive(true)
-                  push('Scenario activated.', 'success')
-                  await refreshSession()
-                } catch (error) {
-                  push(error?.message || 'The scenario could not be activated.', 'error')
-                } finally {
-                  setBusy(false)
-                }
-              }}
-            >
-              {active ? 'Active' : 'Activate'}
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<SportsEsportsOutlinedIcon />}
-              onClick={() => navigate(`/exercise/games?scenarioId=${id}`)}
-            >
-              Manage games
-            </Button>
-            <Button
-              color="error"
-              startIcon={<DeleteOutlinedIcon />}
-              disabled={busy || active}
-              onClick={() => setConfirmDelete(true)}
-            >
+      <Stack direction="row" spacing={1} justifyContent="space-between" useFlexGap flexWrap="wrap">
+        <Box>
+          {!isNew ? (
+            <Button color="error" startIcon={<DeleteOutlinedIcon />} disabled={busy || active} onClick={() => setConfirmDelete(true)}>
               Delete
             </Button>
-          </Stack>
-        </>
-      ) : null}
-
-      <Stack direction="row" spacing={1} justifyContent="flex-end">
-        <Button onClick={() => navigate('/exercise/scenarios')} disabled={busy}>
-          Cancel
-        </Button>
-        <Button variant="contained" startIcon={<SaveOutlinedIcon />} onClick={save} disabled={busy || !form.name.trim()}>
-          {busy ? 'Saving…' : isNew ? 'Create scenario' : 'Save scenario'}
-        </Button>
+          ) : null}
+        </Box>
+        <Stack direction="row" spacing={1}>
+          <Button onClick={() => navigate('/exercise/scenarios')} disabled={busy}>
+            Cancel
+          </Button>
+          <Button variant="contained" startIcon={<SaveOutlinedIcon />} onClick={save} disabled={busy || !form.name.trim()}>
+            {busy ? 'Saving…' : isNew ? 'Create scenario' : 'Save scenario'}
+          </Button>
+        </Stack>
       </Stack>
 
       <ConfirmDialog
@@ -390,6 +493,14 @@ export function ScenarioListPage() {
       }
     >
       <ScenarioList />
+    </ExerciseLayout>
+  )
+}
+
+export function ScenarioPreviewPage() {
+  return (
+    <ExerciseLayout kicker="Exercise" title="Scenario preview">
+      <ScenarioPreview />
     </ExerciseLayout>
   )
 }

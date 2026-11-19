@@ -3,7 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { Box } from '@mui/material'
 import LoginPage from '../features/login/LoginPage'
 import { GameEditorPage, GameListPage } from '../features/scenario/GamePages'
-import { ScenarioEditorPage, ScenarioListPage } from '../features/scenario/ScenarioPages'
+import { ScenarioEditorPage, ScenarioListPage, ScenarioPreviewPage } from '../features/scenario/ScenarioPages'
 import { useChrome } from '../features/session/useChrome'
 import { useSessionStore } from '../features/session/useSessionStore'
 import { ApplicationMenu } from '../shared/ui/ApplicationMenu'
@@ -72,6 +72,14 @@ export default function Shell() {
         element={
           <RequireSession>
             <ScenarioListPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/exercise/scenarios/:id/preview"
+        element={
+          <RequireSession>
+            <ScenarioPreviewPage />
           </RequireSession>
         }
       />

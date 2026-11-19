@@ -1,8 +1,5 @@
 import { Box, Checkbox, FormControlLabel, Typography } from '@mui/material'
-import { ExerciseClock } from './ExerciseClock'
-import { GameStateChip } from './GameStateChip'
 import { ScenarioContext } from './ScenarioContext'
-import { StatusBadge } from './StatusBadge'
 import { UserMenu } from './UserMenu'
 
 function ViewModes({ mode, onChange }) {
@@ -43,16 +40,11 @@ export function TopBar({ leading, trailing, menuOpen, onMenuOpenChange, floating
         GIS WARPLAN
       </Typography>
       <ViewModes mode={viewMode} onChange={onViewMode} />
-      <Box sx={{ flex: 1, minWidth: 0, display: { xs: 'none', lg: 'flex' }, alignItems: 'center' }}>
+      <Box sx={{ flex: 1, minWidth: 0, display: { xs: 'none', lg: 'flex' }, alignItems: 'center', overflow: 'hidden' }}>
         <ScenarioContext />
       </Box>
       <Box sx={{ flex: { xs: 1, lg: 0 } }} />
       {trailing}
-      <StatusBadge />
-      <GameStateChip />
-      <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-        <ExerciseClock />
-      </Box>
       <UserMenu open={menuOpen} onOpenChange={onMenuOpenChange} />
     </Box>
   )
@@ -74,9 +66,6 @@ export function ContextStrip() {
       }}
     >
       <ScenarioContext />
-      <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
-        <ExerciseClock />
-      </Box>
     </Box>
   )
 }

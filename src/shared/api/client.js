@@ -290,7 +290,16 @@ export async function changeScenario({ scenarioId }) {
 
 export async function changeGame({ gameId }) {
   try {
-    if (!gameId) throw new ApiError('Select a game.', 'VALIDATION')
+    if (!gameId) {
+      await post('/games/deactivate')
+      const session = await refreshSession()
+      return {
+        activeGameId: '',
+        name: '',
+        activeScenarioId: session.activeScenarioId,
+        ...exerciseDelta(session),
+      }
+    }
     const game = await post(`/games/${gameId}/activate`)
     const session = await refreshSession()
     return {

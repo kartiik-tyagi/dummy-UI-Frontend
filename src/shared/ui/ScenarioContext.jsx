@@ -24,6 +24,7 @@ import SportsEsportsOutlinedIcon from '@mui/icons-material/SportsEsportsOutlined
 import { useSessionStore } from '../../features/session/useSessionStore'
 
 const NONE = '__none__'
+const NONE_GAME = '__none_game__'
 const ADD = '__add__'
 const ADD_GAME = '__add_game__'
 
@@ -39,7 +40,7 @@ function Mark({ label, children }) {
 
 function Fact({ label, icon, children }) {
   return (
-    <Box sx={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+    <Box sx={{ minWidth: 0, flexShrink: 1, display: 'flex', alignItems: 'center', gap: 0.75 }}>
       <Mark label={label}>{icon}</Mark>
       {children}
     </Box>
@@ -76,9 +77,12 @@ export function ScenarioContext() {
   const scenario = scenarios.find((item) => item.id === session.activeScenarioId)
   const game = games.find((item) => item.id === session.activeGame.id) || session.activeGame
   const scenarioValue = session.activeScenarioId || NONE
-  const gameValue = session.activeGame.id && games.some((item) => item.id === session.activeGame.id)
-    ? session.activeGame.id
-    : ''
+  const gameValue =
+    session.activeScenarioId && session.activeGame.id && games.some((item) => item.id === session.activeGame.id)
+      ? session.activeGame.id
+      : session.activeScenarioId
+        ? NONE_GAME
+        : ''
 
   function askScenario(id) {
     if (busy) return
@@ -112,6 +116,18 @@ export function ScenarioContext() {
       navigate(`/exercise/games/new${query}`)
       return
     }
+    if (id === NONE_GAME) {
+      if (!session.activeGame?.id) return
+      setError('')
+      setPending({
+        kind: 'game',
+        id: '',
+        name: 'No active game',
+        from: game?.name || 'the current game',
+        clearing: true,
+      })
+      return
+    }
     if (!id || id === session.activeGame.id) return
     const next = games.find((item) => item.id === id)
     if (!next || !next.open) return
@@ -142,7 +158,7 @@ export function ScenarioContext() {
 
   return (
     <>
-      <Stack direction="row" spacing={2} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+      <Stack direction="row" spacing={1.5} useFlexGap sx={{ alignItems: 'center', flexWrap: 'nowrap', minWidth: 0, width: '100%' }}>
         {session.canSelectScenario ? (
           <Fact label="Scenario" icon={<FlagOutlinedIcon fontSize="small" />}>
             <TextField
@@ -153,7 +169,7 @@ export function ScenarioContext() {
               disabled={busy}
               onChange={(event) => askScenario(event.target.value)}
               aria-label="Scenario"
-              sx={{ minWidth: 188, maxWidth: 280, '& .MuiInputBase-root': { minHeight: 36 }, '& .MuiSelect-select': { py: 0.75 } }}
+              sx={{ minWidth: 160, maxWidth: 220, '& .MuiInputBase-root': { minHeight: 36 }, '& .MuiSelect-select': { py: 0.75 } }}
             >
               <MenuItem value={NONE}>No active scenario</MenuItem>
               {scenarios.length ? <Divider /> : null}
@@ -190,21 +206,21 @@ export function ScenarioContext() {
               onChange={(event) => askGame(event.target.value)}
               aria-label="Game"
               displayEmpty
-              sx={{ minWidth: 168, maxWidth: 240, '& .MuiInputBase-root': { minHeight: 36 }, '& .MuiSelect-select': { py: 0.75 } }}
+              sx={{ minWidth: 140, maxWidth: 200, '& .MuiInputBase-root': { minHeight: 36 }, '& .MuiSelect-select': { py: 0.75 } }}
             >
               {!session.activeScenarioId ? (
                 <MenuItem value="" disabled>
                   Select a scenario first
                 </MenuItem>
-              ) : !games.length ? (
+              ) : (
+                <MenuItem value={NONE_GAME}>No active game</MenuItem>
+              )}
+              {session.activeScenarioId && games.length ? <Divider /> : null}
+              {session.activeScenarioId && !games.length ? (
                 <MenuItem value="" disabled>
                   No games yet
                 </MenuItem>
-              ) : (
-                <MenuItem value="" disabled>
-                  {gameValue ? 'Select game' : 'No active game'}
-                </MenuItem>
-              )}
+              ) : null}
               {games.map((item) => (
                 <MenuItem key={item.id} value={item.id} disabled={!item.open} sx={{ minHeight: 40 }}>
                   {item.open ? item.name : `${item.name} · Closed`}
@@ -231,14 +247,14 @@ export function ScenarioContext() {
         )}
         {game?.dateTime ? (
           <Fact label="Game time" icon={<SportsEsportsOutlinedIcon fontSize="small" />}>
-            <Typography variant="body2" noWrap>
+            <Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>
               {new Date(game.dateTime).toLocaleString()}
             </Typography>
           </Fact>
         ) : null}
         {game?.moonphases ? (
           <Fact label="Moonphases" icon={<NightlightOutlinedIcon fontSize="small" />}>
-            <Typography variant="body2" noWrap>
+            <Typography variant="body2" noWrap sx={{ maxWidth: 180 }} title={game.moonphases}>
               {game.moonphases}
             </Typography>
           </Fact>
@@ -246,15 +262,23 @@ export function ScenarioContext() {
       </Stack>
       <Dialog open={Boolean(pending)} onClose={close} fullWidth maxWidth="xs">
         <DialogTitle>
-          {pending?.clearing ? 'Clear the active scenario' : pending?.kind === 'game' ? 'Activate game' : 'Activate scenario'}
+          {pending?.clearing
+            ? pending?.kind === 'game'
+              ? 'Clear the active game'
+              : 'Clear the active scenario'
+            : pending?.kind === 'game'
+              ? 'Activate game'
+              : 'Activate scenario'}
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.primary">
-            {pending?.clearing
+            {pending?.clearing && pending?.kind === 'scenario'
               ? 'Clear the active scenario and game? The exercise will have no open scenario until you choose one again.'
-              : pending
-                ? `Set ${pending.kind} to ${pending.name}? This becomes the open exercise.`
-                : ''}
+              : pending?.clearing && pending?.kind === 'game'
+                ? 'Clear the active game? The scenario stays active until you choose a game again.'
+                : pending
+                  ? `Set ${pending.kind} to ${pending.name}? This becomes the open exercise.`
+                  : ''}
           </Typography>
           {error ? (
             <Alert severity="error" sx={{ mt: 2 }}>

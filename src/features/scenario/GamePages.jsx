@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Box,
@@ -13,6 +13,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined'
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
 import { del, get, post, put } from '../../shared/api/http'
 import { EMPTY_LIST } from '../../shared/lib/empty'
@@ -135,10 +136,6 @@ function GameList() {
 
   return (
     <Stack spacing={2.5}>
-      <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 62 * 8 }}>
-        One scenario owns many games. Each game carries its own timing and playing force. Activate one game
-        here or from the top-bar dropdown to open the exercise.
-      </Typography>
       <TextField
         select
         label="Scenario"
@@ -175,7 +172,7 @@ function GameList() {
             borderRadius: 2,
           }}
         >
-          <Typography variant="h6" sx={{ mb: 1 }}>
+          <Typography variant="h6" sx={{ mb: 1, color: 'text.primary' }}>
             No games for this scenario
           </Typography>
           <Button
@@ -199,17 +196,29 @@ function GameList() {
                 bgcolor: 'background.paper',
               }}
             >
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }} sx={{ mb: 0.5 }}>
-                <Box
-                  component={RouterLink}
-                  to={`/exercise/games/${item.id}`}
-                  sx={{ flex: 1, minWidth: 0, textDecoration: 'none', color: 'inherit' }}
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }} flexWrap="wrap" useFlexGap>
+                <Typography
+                  variant="h6"
+                  sx={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: '1.05rem', color: 'text.primary' }}
                 >
-                  <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.05rem' }}>
-                    {item.name}
-                  </Typography>
-                </Box>
+                  {item.name}
+                </Typography>
                 {item.active ? <Chip size="small" color="success" label="Active" /> : null}
+              </Stack>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
+                {item.dateTime
+                  ? new Date(item.dateTime).toLocaleString()
+                  : richTextPlain(item.description, 120) || 'No schedule yet'}
+              </Typography>
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditOutlinedIcon />}
+                  onClick={() => navigate(`/exercise/games/${item.id}`)}
+                >
+                  Edit
+                </Button>
                 <Button
                   size="small"
                   variant={item.active ? 'outlined' : 'contained'}
@@ -220,17 +229,6 @@ function GameList() {
                   {item.active ? 'Active' : activatingId === item.id ? 'Activating…' : 'Activate'}
                 </Button>
               </Stack>
-              <Typography
-                component={RouterLink}
-                to={`/exercise/games/${item.id}`}
-                variant="body2"
-                color="text.secondary"
-                sx={{ textDecoration: 'none', display: 'block' }}
-              >
-                {item.dateTime
-                  ? new Date(item.dateTime).toLocaleString()
-                  : richTextPlain(item.description, 120) || 'No schedule yet'}
-              </Typography>
             </Box>
           ))}
         </Stack>
@@ -403,29 +401,38 @@ function GameEditor() {
       <TextField
         type="datetime-local"
         label="Date and time"
-        InputLabelProps={{ shrink: true }}
-        value={form.dateTime ? toLocalInput(form.dateTime) : form.dateTime}
+        value={form.dateTime ? toLocalInput(form.dateTime) : ''}
         onChange={(event) => change('dateTime', event.target.value)}
         error={Boolean(errors.dateTime)}
         helperText={errors.dateTime || undefined}
         fullWidth
+        slotProps={{
+          inputLabel: { shrink: true },
+          htmlInput: { placeholder: '' },
+        }}
       />
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
           type="time"
           label="Sunrise"
-          InputLabelProps={{ shrink: true }}
           value={toTimeInput(form.sunrise)}
           onChange={(event) => change('sunrise', event.target.value)}
           fullWidth
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { placeholder: '' },
+          }}
         />
         <TextField
           type="time"
           label="Sunset"
-          InputLabelProps={{ shrink: true }}
           value={toTimeInput(form.sunset)}
           onChange={(event) => change('sunset', event.target.value)}
           fullWidth
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { placeholder: '' },
+          }}
         />
       </Stack>
       <TextField
@@ -435,8 +442,10 @@ function GameEditor() {
         value={form.moonphases}
         onChange={(event) => change('moonphases', event.target.value)}
         error={Boolean(errors.moonphases)}
-        helperText={errors.moonphases || undefined}
+        helperText={errors.moonphases || 'Optional free-text moon phase notes'}
+        placeholder=" "
         fullWidth
+        slotProps={{ inputLabel: { shrink: true } }}
       />
       <RichTextEditor
         label="Description"
