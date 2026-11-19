@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Alert,
   Box,
@@ -7,16 +8,24 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
+  ListItemIcon,
+  ListItemText,
   MenuItem,
   Stack,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material'
+import AddIcon from '@mui/icons-material/Add'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import NightlightOutlinedIcon from '@mui/icons-material/NightlightOutlined'
 import SportsEsportsOutlinedIcon from '@mui/icons-material/SportsEsportsOutlined'
 import { useSessionStore } from '../../features/session/useSessionStore'
+
+const NONE = '__none__'
+const ADD = '__add__'
+const ADD_GAME = '__add_game__'
 
 function Mark({ label, children }) {
   return (
@@ -37,69 +46,77 @@ function Fact({ label, icon, children }) {
   )
 }
 
-function Choice({ label, icon, value, options, disabled, onSelect, emptyLabel }) {
-  const hasValue = options.some((item) => item.id === value)
-  return (
-    <Fact label={label} icon={icon}>
-      <TextField
-        select
-        size="small"
-        hiddenLabel
-        value={hasValue ? value : ''}
-        disabled={disabled || !options.length}
-        onChange={(event) => onSelect(event.target.value)}
-        aria-label={label}
-        displayEmpty
-        sx={{ minWidth: 168, maxWidth: 220, '& .MuiInputBase-root': { minHeight: 36 }, '& .MuiSelect-select': { py: 0.75 } }}
-      >
-        {!options.length ? (
-          <MenuItem value="" disabled>
-            {emptyLabel || `No ${label.toLowerCase()} yet`}
-          </MenuItem>
-        ) : (
-          <MenuItem value="" disabled>
-            {hasValue ? `Select ${label.toLowerCase()}` : `No active ${label.toLowerCase()}`}
-          </MenuItem>
-        )}
-        {options.map((item) => (
-          <MenuItem key={item.id} value={item.id} disabled={item.disabled} sx={{ minHeight: 40 }}>
-            {item.label}
-          </MenuItem>
-        ))}
-      </TextField>
-    </Fact>
-  )
-}
-
 export function ScenarioContext() {
+  const navigate = useNavigate()
   const session = useSessionStore((state) => state.session)
   const changeScenario = useSessionStore((state) => state.changeScenario)
   const changeGame = useSessionStore((state) => state.changeGame)
+  const refresh = useSessionStore((state) => state.refresh)
   const [pending, setPending] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  useEffect(() => {
+    if (!session) return undefined
+    let live = true
+    refresh().catch(() => {
+      if (!live) return
+    })
+    return () => {
+      live = false
+    }
+  }, [refresh, session?.profile?.id])
+
   if (!session) return null
 
-  const games = session.games || []
-  const scenario = session.scenarios.find((item) => item.id === session.activeScenarioId)
+  const scenarios = session.scenarios || []
+  const games = (session.games || []).filter(
+    (item) => !session.activeScenarioId || item.scenarioId === session.activeScenarioId,
+  )
+  const scenario = scenarios.find((item) => item.id === session.activeScenarioId)
   const game = games.find((item) => item.id === session.activeGame.id) || session.activeGame
+  const scenarioValue = session.activeScenarioId || NONE
+  const gameValue = session.activeGame.id && games.some((item) => item.id === session.activeGame.id)
+    ? session.activeGame.id
+    : ''
 
-  function ask(kind, id) {
+  function askScenario(id) {
     if (busy) return
-    if (kind === 'scenario') {
-      if (id === session.activeScenarioId) return
-      const next = session.scenarios.find((item) => item.id === id)
-      if (!next) return
-      setError('')
-      setPending({ kind, id, name: next.name, from: scenario?.name || 'the current scenario' })
+    if (id === ADD) {
+      navigate('/exercise/scenarios/new')
       return
     }
-    if (id === session.activeGame.id) return
+    if (id === NONE) {
+      if (!session.activeScenarioId) return
+      setError('')
+      setPending({
+        kind: 'scenario',
+        id: '',
+        name: 'No active scenario',
+        from: scenario?.name || 'the current scenario',
+        clearing: true,
+      })
+      return
+    }
+    if (id === session.activeScenarioId) return
+    const next = scenarios.find((item) => item.id === id)
+    if (!next) return
+    setError('')
+    setPending({ kind: 'scenario', id, name: next.name, from: scenario?.name || 'none' })
+  }
+
+  function askGame(id) {
+    if (busy) return
+    if (id === ADD_GAME) {
+      const query = session.activeScenarioId ? `?scenarioId=${session.activeScenarioId}` : ''
+      navigate(`/exercise/games/new${query}`)
+      return
+    }
+    if (!id || id === session.activeGame.id) return
     const next = games.find((item) => item.id === id)
     if (!next || !next.open) return
     setError('')
-    setPending({ kind, id, name: next.name, from: game?.name || 'the current game' })
+    setPending({ kind: 'game', id, name: next.name, from: game?.name || 'the current game' })
   }
 
   function close() {
@@ -127,15 +144,34 @@ export function ScenarioContext() {
     <>
       <Stack direction="row" spacing={2} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
         {session.canSelectScenario ? (
-          <Choice
-            label="Scenario"
-            icon={<FlagOutlinedIcon fontSize="small" />}
-            value={session.activeScenarioId}
-            disabled={busy}
-            onSelect={(id) => ask('scenario', id)}
-            emptyLabel="Create a scenario"
-            options={session.scenarios.map((item) => ({ id: item.id, label: item.name }))}
-          />
+          <Fact label="Scenario" icon={<FlagOutlinedIcon fontSize="small" />}>
+            <TextField
+              select
+              size="small"
+              hiddenLabel
+              value={scenarioValue}
+              disabled={busy}
+              onChange={(event) => askScenario(event.target.value)}
+              aria-label="Scenario"
+              sx={{ minWidth: 188, maxWidth: 280, '& .MuiInputBase-root': { minHeight: 36 }, '& .MuiSelect-select': { py: 0.75 } }}
+            >
+              <MenuItem value={NONE}>No active scenario</MenuItem>
+              {scenarios.length ? <Divider /> : null}
+              {scenarios.map((item) => (
+                <MenuItem key={item.id} value={item.id} sx={{ minHeight: 40 }}>
+                  {item.name}
+                  {item.active || item.id === session.activeScenarioId ? ' · active' : ''}
+                </MenuItem>
+              ))}
+              <Divider />
+              <MenuItem value={ADD} sx={{ minHeight: 40 }}>
+                <ListItemIcon sx={{ minWidth: 32 }}>
+                  <AddIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="Add scenario…" />
+              </MenuItem>
+            </TextField>
+          </Fact>
         ) : (
           <Fact label="Scenario" icon={<FlagOutlinedIcon fontSize="small" />}>
             <Typography variant="body2" noWrap color={scenario?.name ? 'text.primary' : 'text.secondary'}>
@@ -144,19 +180,48 @@ export function ScenarioContext() {
           </Fact>
         )}
         {session.canSelectGame ? (
-          <Choice
-            label="Game"
-            icon={<SportsEsportsOutlinedIcon fontSize="small" />}
-            value={session.activeGame.id}
-            disabled={busy}
-            onSelect={(id) => ask('game', id)}
-            emptyLabel="Create a game"
-            options={games.map((item) => ({
-              id: item.id,
-              label: item.open ? item.name : `${item.name} · Closed`,
-              disabled: !item.open,
-            }))}
-          />
+          <Fact label="Game" icon={<SportsEsportsOutlinedIcon fontSize="small" />}>
+            <TextField
+              select
+              size="small"
+              hiddenLabel
+              value={gameValue}
+              disabled={busy || !session.activeScenarioId}
+              onChange={(event) => askGame(event.target.value)}
+              aria-label="Game"
+              displayEmpty
+              sx={{ minWidth: 168, maxWidth: 240, '& .MuiInputBase-root': { minHeight: 36 }, '& .MuiSelect-select': { py: 0.75 } }}
+            >
+              {!session.activeScenarioId ? (
+                <MenuItem value="" disabled>
+                  Select a scenario first
+                </MenuItem>
+              ) : !games.length ? (
+                <MenuItem value="" disabled>
+                  No games yet
+                </MenuItem>
+              ) : (
+                <MenuItem value="" disabled>
+                  {gameValue ? 'Select game' : 'No active game'}
+                </MenuItem>
+              )}
+              {games.map((item) => (
+                <MenuItem key={item.id} value={item.id} disabled={!item.open} sx={{ minHeight: 40 }}>
+                  {item.open ? item.name : `${item.name} · Closed`}
+                  {item.active || item.id === session.activeGame.id ? ' · active' : ''}
+                </MenuItem>
+              ))}
+              {session.activeScenarioId ? <Divider /> : null}
+              {session.activeScenarioId ? (
+                <MenuItem value={ADD_GAME} sx={{ minHeight: 40 }}>
+                  <ListItemIcon sx={{ minWidth: 32 }}>
+                    <AddIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary="Add game…" />
+                </MenuItem>
+              ) : null}
+            </TextField>
+          </Fact>
         ) : (
           <Fact label="Game" icon={<SportsEsportsOutlinedIcon fontSize="small" />}>
             <Typography variant="body2" noWrap color={session.activeGame.name ? 'text.primary' : 'text.secondary'}>
@@ -180,12 +245,16 @@ export function ScenarioContext() {
         ) : null}
       </Stack>
       <Dialog open={Boolean(pending)} onClose={close} fullWidth maxWidth="xs">
-        <DialogTitle>{pending?.kind === 'game' ? 'Change the game' : 'Change the scenario'}</DialogTitle>
+        <DialogTitle>
+          {pending?.clearing ? 'Clear the active scenario' : pending?.kind === 'game' ? 'Activate game' : 'Activate scenario'}
+        </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.primary">
-            {pending
-              ? `Change ${pending.kind} from ${pending.from} to ${pending.name}? This applies to the exercise.`
-              : ''}
+            {pending?.clearing
+              ? 'Clear the active scenario and game? The exercise will have no open scenario until you choose one again.'
+              : pending
+                ? `Set ${pending.kind} to ${pending.name}? This becomes the open exercise.`
+                : ''}
           </Typography>
           {error ? (
             <Alert severity="error" sx={{ mt: 2 }}>
@@ -198,7 +267,7 @@ export function ScenarioContext() {
             Cancel
           </Button>
           <Button variant="contained" onClick={confirm} disabled={busy || !pending}>
-            {busy ? 'Changing' : 'Change'}
+            {busy ? 'Working…' : pending?.clearing ? 'Clear' : 'Activate'}
           </Button>
         </DialogActions>
       </Dialog>

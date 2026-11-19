@@ -105,26 +105,33 @@ export const useSessionStore = create((set, get) => ({
       logger.warn('scenario.change_rejected', { userId, scenarioId: scenarioId || null, code: 'FORBIDDEN' })
       throw new ApiError('This user cannot change the scenario.', 'FORBIDDEN')
     }
-    if (!session.scenarios.some((item) => item.id === scenarioId)) {
+    const clearing = !scenarioId
+    if (!clearing && !session.scenarios.some((item) => item.id === scenarioId)) {
       logger.warn('scenario.change_rejected', { userId, scenarioId: scenarioId || null, code: 'NOT_FOUND' })
       throw new ApiError('That scenario is not in this exercise.', 'NOT_FOUND')
     }
-    if (scenarioId === session.activeScenarioId) return
+    if (!clearing && scenarioId === session.activeScenarioId) return
+    if (clearing && !session.activeScenarioId) return
     if (status === 'running' || status === 'paused') {
-      logger.warn('scenario.change_rejected', { userId, scenarioId, code: 'GAME_IN_PROGRESS' })
+      logger.warn('scenario.change_rejected', { userId, scenarioId: scenarioId || null, code: 'GAME_IN_PROGRESS' })
       throw new ApiError('End the game before changing the scenario.', 'GAME_IN_PROGRESS')
     }
-    const result = await requestScenarioChange({ userId, scenarioId })
+    const result = await requestScenarioChange({ userId, scenarioId: clearing ? '' : scenarioId })
     set((state) => {
       if (!state.session) return state
       return {
         session: {
           ...state.session,
-          activeScenarioId: result.activeScenarioId,
-          selectedScenarioId: result.activeScenarioId,
-          scenarios: result.scenarios || state.session.scenarios.map((item) => ({ ...item, active: item.id === result.activeScenarioId })),
+          activeScenarioId: result.activeScenarioId || '',
+          selectedScenarioId: result.activeScenarioId || '',
+          scenarios:
+            result.scenarios ||
+            state.session.scenarios.map((item) => ({
+              ...item,
+              active: Boolean(result.activeScenarioId) && item.id === result.activeScenarioId,
+            })),
           games: result.games || state.session.games,
-          activeGame: result.activeGame || state.session.activeGame,
+          activeGame: result.activeGame || { id: '', name: '' },
         },
       }
     })

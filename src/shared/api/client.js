@@ -273,7 +273,11 @@ function exerciseDelta(session) {
 
 export async function changeScenario({ scenarioId }) {
   try {
-    if (!scenarioId) throw new ApiError('Select a scenario.', 'VALIDATION')
+    if (!scenarioId) {
+      await post('/scenarios/deactivate')
+      const session = await refreshSession()
+      return { activeScenarioId: '', name: '', ...exerciseDelta(session) }
+    }
     const scenario = await post(`/scenarios/${scenarioId}/activate`)
     const session = await refreshSession()
     return { activeScenarioId: String(scenario.id), name: scenario.name, ...exerciseDelta(session) }

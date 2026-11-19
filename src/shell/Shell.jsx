@@ -1,7 +1,9 @@
-﻿import { useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Box } from '@mui/material'
 import LoginPage from '../features/login/LoginPage'
+import { GameEditorPage, GameListPage } from '../features/scenario/GamePages'
+import { ScenarioEditorPage, ScenarioListPage } from '../features/scenario/ScenarioPages'
 import { useChrome } from '../features/session/useChrome'
 import { useSessionStore } from '../features/session/useSessionStore'
 import { ApplicationMenu } from '../shared/ui/ApplicationMenu'
@@ -13,8 +15,13 @@ import { ContextStrip, TopBar } from '../shared/ui/TopBar'
 
 function Frame() {
   const { panel, closePanel, select } = useChrome()
+  const refresh = useSessionStore((state) => state.refresh)
   const [toolsOpen, setToolsOpen] = useState(true)
   const [readout, setReadout] = useState(null)
+
+  useEffect(() => {
+    refresh().catch(() => {})
+  }, [refresh])
 
   return (
     <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', bgcolor: 'background.default', color: 'text.primary' }}>
@@ -48,12 +55,50 @@ function Frame() {
   )
 }
 
+function RequireSession({ children }) {
+  const session = useSessionStore((state) => state.session)
+  if (!session) return <Navigate to="/login" replace />
+  return children
+}
+
 export default function Shell() {
   const session = useSessionStore((state) => state.session)
   return (
     <Routes>
       <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginPage />} />
       <Route path="/" element={session ? <Frame /> : <Navigate to="/login" replace />} />
+      <Route
+        path="/exercise/scenarios"
+        element={
+          <RequireSession>
+            <ScenarioListPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/exercise/scenarios/:id"
+        element={
+          <RequireSession>
+            <ScenarioEditorPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/exercise/games"
+        element={
+          <RequireSession>
+            <GameListPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/exercise/games/:id"
+        element={
+          <RequireSession>
+            <GameEditorPage />
+          </RequireSession>
+        }
+      />
       <Route path="*" element={<Navigate to={session ? '/' : '/login'} replace />} />
     </Routes>
   )

@@ -75,10 +75,14 @@ export function sectionsForFunctionalities(functionalities) {
   return sections
 }
 
-/** Which tool panel an application-menu section opens. */
+/** Full-page routes for application-menu sections (leave the map shell). */
+export const SECTION_ROUTE = Object.freeze({
+  scenario: '/exercise/scenarios',
+  game: '/exercise/games',
+})
+
+/** Which tool panel an application-menu section opens (dock panels). */
 export const SECTION_PANEL = Object.freeze({
-  scenario: 'scenario-admin',
-  game: 'game-admin',
   orbat: 'orbat',
   users: 'directory',
   map: 'map-admin',

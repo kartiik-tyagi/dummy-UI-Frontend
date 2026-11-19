@@ -25,7 +25,6 @@ const EMPTY_SCENARIO = {
   generalIdea: '',
   openingNarrative: '',
   specialIdea: '',
-  attachedFile: '',
 }
 
 const EMPTY_GAME = {
@@ -261,7 +260,6 @@ export function ScenarioAdminPanel() {
           generalIdea: form.generalIdea || null,
           openingNarrative: form.openingNarrative || null,
           specialIdea: form.specialIdea || null,
-          attachedFile: form.attachedFile || null,
         })}
         primary={(item) => item.name}
         secondary={(item) => clip(item.generalIdea)}
@@ -297,14 +295,9 @@ export function ScenarioAdminPanel() {
               error={Boolean(errors.specialIdea)}
               helperText={errors.specialIdea || undefined}
             />
-            <TextField
-              size="small"
-              label="Attached file"
-              value={form.attachedFile}
-              onChange={(event) => change('attachedFile', event.target.value)}
-              error={Boolean(errors.attachedFile)}
-              helperText={errors.attachedFile || 'Path or reference for an optional attachment'}
-            />
+            <Typography variant="caption" color="text.secondary">
+              Attachments are managed on the full scenario page (txt, doc, pdf, jpg).
+            </Typography>
           </>
         )}
       />
