@@ -1,33 +1,37 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useChromeBus } from './useChromeBus'
 import { useSessionStore } from './useSessionStore'
 
 export function useChrome() {
   const requestExtent = useSessionStore((state) => state.requestExtent)
-  const request = useChromeBus((state) => state.request)
-  const mountedAt = useRef(Date.now())
+  const pinnedPanel = useChromeBus((state) => state.pinnedPanel)
+  const clearPin = useChromeBus((state) => state.close)
+  const [localPanel, setLocalPanel] = useState(null)
   const [expanded, setExpanded] = useState(false)
-  const [panel, setPanel] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
 
-  // An application-menu section asked for a panel: open it (never toggle it shut).
-  useEffect(() => {
-    if (request?.panel && request.at >= mountedAt.current) setPanel(request.panel)
-  }, [request])
+  // Menu pin wins until closed; toolbar selection uses local panel after clearing the pin.
+  const panel = pinnedPanel || localPanel
 
   const select = (id) => {
     if (id === 'extent') {
       requestExtent()
       return
     }
-    setPanel((current) => (current === id ? null : id))
+    clearPin()
+    setLocalPanel((current) => (current === id ? null : id))
+  }
+
+  const closePanel = () => {
+    clearPin()
+    setLocalPanel(null)
   }
 
   return {
     expanded,
     setExpanded,
     panel,
-    closePanel: () => setPanel(null),
+    closePanel,
     menuOpen,
     setMenuOpen,
     select,

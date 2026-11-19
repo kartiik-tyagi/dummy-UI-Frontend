@@ -1,7 +1,11 @@
 import { create } from 'zustand'
 
-/** Lets menus outside the shell frame (application sections) ask the frame to open a tool panel. */
+/**
+ * Application-menu dock requests. `pinnedPanel` lives outside the map shell so it
+ * survives leaving a full page and remounting `/`.
+ */
 export const useChromeBus = create((set) => ({
-  request: null,
-  open: (panel) => set({ request: { panel, at: Date.now() } }),
+  pinnedPanel: null,
+  open: (panel) => set({ pinnedPanel: panel }),
+  close: () => set({ pinnedPanel: null }),
 }))
