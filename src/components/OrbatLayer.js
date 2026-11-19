@@ -7,18 +7,32 @@ import VectorSource from 'ol/source/Vector'
 import Translate from 'ol/interaction/Translate'
 import { fromLonLat, toLonLat } from 'ol/proj'
 import { Circle, Fill, Icon, Stroke, Style, Text } from 'ol/style'
-import { httpBlob } from '../shared/api/http'
+import { httpBlob, httpText } from '../shared/api/http'
 import { useOrbatPicture } from '../features/orbat/useOrbatPicture'
+import { iconCssVars, resolveThemedSvg } from '../shared/icons/iconTheme'
+import { isSvgPath } from '../shared/icons/svgDocument'
 
 const iconUrls = new Map()
 
-function loadIcon(path) {
+function themeStamp(theme) {
+  return Object.entries(iconCssVars(theme)).map(([name, value]) => `${name}=${value}`).join(';')
+}
+
+function iconKey(path, theme) {
+  return `${path}\n${themeStamp(theme)}`
+}
+
+function loadIcon(path, theme) {
   if (!path) return Promise.resolve('')
-  if (iconUrls.has(path)) return Promise.resolve(iconUrls.get(path))
-  return httpBlob('/icons/content', { query: { path } })
+  const key = iconKey(path, theme)
+  if (iconUrls.has(key)) return Promise.resolve(iconUrls.get(key))
+  const request = isSvgPath(path)
+    ? httpText('/icons/content', { query: { path } }).then((markup) => new Blob([resolveThemedSvg(markup, theme)], { type: 'image/svg+xml' }))
+    : httpBlob('/icons/content', { query: { path } })
+  return request
     .then((blob) => {
       const url = URL.createObjectURL(blob)
-      iconUrls.set(path, url)
+      iconUrls.set(key, url)
       return url
     })
     .catch(() => '')
@@ -99,9 +113,9 @@ export function OrbatLayer({ map }) {
     source.clear()
     if (!active) return
     const placed = nodes.filter((node) => finite(node.latitude) != null && finite(node.longitude) != null)
-    const missing = [...new Set(placed.map((node) => node.iconPath).filter((path) => path && !iconUrls.has(path)))]
+    const missing = [...new Set(placed.map((node) => node.iconPath).filter((path) => path && !iconUrls.has(iconKey(path, theme))))]
     if (missing.length) {
-      Promise.all(missing.map(loadIcon)).then(() => setIconsReady((value) => value + 1))
+      Promise.all(missing.map((path) => loadIcon(path, theme))).then(() => setIconsReady((value) => value + 1))
     }
     const groups = new Map()
     placed.forEach((node) => {
@@ -115,7 +129,7 @@ export function OrbatLayer({ map }) {
       const [longitude, latitude] = displayPoint(node, group.indexOf(node), group.length)
       const feature = new Feature({ geometry: new Point(fromLonLat([longitude, latitude])) })
       feature.set('nodeId', node.id)
-      const icon = node.iconPath ? iconUrls.get(node.iconPath) : ''
+      const icon = node.iconPath ? iconUrls.get(iconKey(node.iconPath, theme)) : ''
       feature.setStyle(new Style({
         image: icon
           ? new Icon({ src: icon, scale: 1.5, anchor: [0.5, 0.5] })

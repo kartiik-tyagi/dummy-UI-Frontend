@@ -152,17 +152,19 @@ function replaceShape(list, id, shape) {
   return list.map((item) => (item.id === id ? shape : item))
 }
 
-function paintKey(paint) {
-  if (!paint || paint.mode === 'none') return 'none'
-  if (paint.mode === 'token') return `token:${paint.token}`
-  return 'custom'
-}
+const FIXED_COLOURS = [
+  { id: 'green', label: 'Green', color: '#2f9e44' },
+  { id: 'red', label: 'Red', color: '#e03131' },
+  { id: 'blue', label: 'Blue', color: '#1c7ed6' },
+  { id: 'yellow', label: 'Yellow', color: '#f59f00' },
+  { id: 'white', label: 'White', color: '#ffffff' },
+  { id: 'black', label: 'Black', color: '#1a1a1a' },
+]
 
-function paintFromKey(key, previous) {
-  if (key === 'none') return { mode: 'none' }
-  if (key === 'custom') return { mode: 'locked', color: previous?.mode === 'locked' ? previous.color : '#c0392b' }
-  if (key.startsWith('token:')) return { mode: 'token', token: key.slice(6) }
-  return { mode: 'token', token: 'primary' }
+function paintKind(paint) {
+  if (!paint || paint.mode === 'none') return 'none'
+  if (paint.mode === 'locked') return 'fixed'
+  return 'theme'
 }
 
 function hexForInput(color) {
@@ -211,32 +213,75 @@ function ShapeNode({ shape }) {
 
 function PaintField({ label, value, onChange }) {
   const theme = useTheme()
+  const kind = paintKind(value)
+  const token = value?.mode === 'token' && ICON_TOKENS.some((item) => item.id === value.token) ? value.token : 'primary'
+  const fixed = hexForInput(value?.color).toLowerCase()
   return (
-    <Stack spacing={0.5}>
-      <TextField select size="small" label={label} value={paintKey(value)} onChange={(event) => onChange(paintFromKey(event.target.value, value))}>
+    <Stack spacing={0.75}>
+      <TextField
+        select
+        size="small"
+        label={label}
+        value={kind}
+        onChange={(event) => {
+          const next = event.target.value
+          if (next === 'none') onChange({ mode: 'none' })
+          else if (next === 'fixed') onChange({ mode: 'locked', color: value?.mode === 'locked' ? hexForInput(value.color) : '#2f9e44' })
+          else onChange({ mode: 'token', token })
+        }}
+      >
+        <MenuItem value="theme">Theme colour</MenuItem>
+        <MenuItem value="fixed">Fixed colour</MenuItem>
         <MenuItem value="none">None</MenuItem>
-        {ICON_TOKENS.map((token) => (
-          <MenuItem key={token.id} value={`token:${token.id}`}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Box sx={{ width: 14, height: 14, borderRadius: 0.5, bgcolor: tokenColor(theme, token.id), border: 1, borderColor: 'divider', flexShrink: 0 }} />
-              <span>{token.label}</span>
-            </Stack>
-          </MenuItem>
-        ))}
-        <MenuItem value="custom">Custom colour</MenuItem>
       </TextField>
-      {value?.mode === 'token' ? <Typography variant="caption" color="text.secondary">Follows the theme of whoever is looking.</Typography> : null}
-      {value?.mode === 'locked' ? (
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <Box
-            component="input"
-            type="color"
-            aria-label={`${label} custom colour`}
-            value={hexForInput(value.color)}
-            onChange={(event) => onChange({ mode: 'locked', color: event.target.value })}
-            sx={{ width: 40, height: 32, p: 0, border: 1, borderColor: 'divider', bgcolor: 'transparent' }}
-          />
-          <Typography variant="caption" color="text.secondary">Stays this colour in every theme.</Typography>
+      {kind === 'theme' ? (
+        <>
+          <TextField select size="small" label="Which theme colour" value={token} onChange={(event) => onChange({ mode: 'token', token: event.target.value })}>
+            {ICON_TOKENS.map((item) => (
+              <MenuItem key={item.id} value={item.id}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  <Box sx={{ width: 14, height: 14, borderRadius: 0.5, bgcolor: tokenColor(theme, item.id), border: 1, borderColor: 'divider', flexShrink: 0 }} />
+                  <span>{item.label}</span>
+                </Stack>
+              </MenuItem>
+            ))}
+          </TextField>
+          <Typography variant="caption" color="text.secondary">Follows the theme, in the panel and on the map.</Typography>
+        </>
+      ) : null}
+      {kind === 'fixed' ? (
+        <Stack spacing={0.5}>
+          <Stack direction="row" spacing={0.5} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            {FIXED_COLOURS.map((swatch) => (
+              <Box
+                key={swatch.id}
+                component="button"
+                type="button"
+                aria-label={`${label} ${swatch.label}`}
+                aria-pressed={fixed === swatch.color}
+                onClick={() => onChange({ mode: 'locked', color: swatch.color })}
+                sx={{
+                  width: 22,
+                  height: 22,
+                  p: 0,
+                  borderRadius: 0.5,
+                  bgcolor: swatch.color,
+                  border: 2,
+                  borderColor: fixed === swatch.color ? 'primary.main' : 'divider',
+                  cursor: 'pointer',
+                }}
+              />
+            ))}
+            <Box
+              component="input"
+              type="color"
+              aria-label={`${label} fixed colour`}
+              value={fixed}
+              onChange={(event) => onChange({ mode: 'locked', color: event.target.value })}
+              sx={{ width: 28, height: 22, p: 0, border: 1, borderColor: 'divider', bgcolor: 'transparent', cursor: 'pointer' }}
+            />
+          </Stack>
+          <Typography variant="caption" color="text.secondary">Stays this colour in every theme and on the map. Use this when a part must stay green, red, or any exact colour.</Typography>
         </Stack>
       ) : null}
     </Stack>
@@ -655,7 +700,7 @@ export function IconStudio({ open, mode = 'create', directory = '', path = '', i
         {mode === 'create' ? 'Draw an icon' : 'Revise icon'}
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
           {mode === 'create' ? `Saves into ${folder}. ` : `${path}. `}
-          Theme colours follow whoever is looking. A custom colour stays as drawn.
+          Each shape can follow the theme, or keep a fixed colour such as green. Both show the same way on the map.
         </Typography>
       </DialogTitle>
       <DialogContent dividers>

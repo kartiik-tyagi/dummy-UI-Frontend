@@ -55,3 +55,14 @@ export function iconCssVars(theme) {
 export function tokenColor(theme, id) {
   return iconCssVars(theme)[`--wp-${id}`]
 }
+
+/**
+ * Copies an SVG for a context that cannot see page CSS, such as a map image.
+ * Theme tokens become the viewer's real colours. A fixed hex or rgb colour is left unchanged.
+ */
+export function resolveThemedSvg(markup, theme) {
+  const vars = iconCssVars(theme)
+  return String(markup || '')
+    .replace(/var\(\s*--wp-([A-Za-z]+)\s*\)/g, (match, token) => vars[`--wp-${token}`] || match)
+    .replace(/\bcurrentColor\b/g, vars['--wp-textPrimary'])
+}
