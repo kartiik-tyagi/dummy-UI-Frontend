@@ -198,7 +198,7 @@ export function ReplicaDialog({ open, sides = EMPTY_LIST, onClose, onSubmit }) {
           ))}
         </TextField>
       ) : (
-        <Typography variant="body2" color="text.secondary">Every country side already has a playing ORBAT in this game.</Typography>
+        <Typography variant="body2" color="text.secondary">Every country side is already playing in this game, on its own or in an alliance.</Typography>
       )}
     </Shell>
   )
@@ -245,10 +245,12 @@ export function AllianceDialog({ open, sides = EMPTY_LIST, themes = EMPTY_LIST, 
         ))}
       </TextField>
       <FormGroup>
-        <FormLabel component="legend" sx={{ fontSize: 13 }}>Member sides (each needs a standard ORBAT)</FormLabel>
-        {sides.map((side) => (
+        <FormLabel component="legend" sx={{ fontSize: 13 }}>Member sides still free in this game</FormLabel>
+        {sides.length ? sides.map((side) => (
           <FormControlLabel key={side.id} label={side.name} control={<Checkbox size="small" checked={members.includes(side.id)} onChange={() => toggle(side.id)} />} />
-        ))}
+        )) : (
+          <Typography variant="body2" color="text.secondary">Every country side is already playing in this game, on its own or in an alliance.</Typography>
+        )}
       </FormGroup>
     </Shell>
   )

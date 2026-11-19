@@ -91,7 +91,7 @@ export function OrbatMapChrome({ nodes, types, editable, canMark, marked, onAdd,
   const clustered = (menu?.nodeIds?.length || 0) > 1
 
   const beginAdd = (id, typeId) => {
-    onAdd(id, typeId, menu.longitude, menu.latitude)
+    onAdd(id, typeId, menu.latitude, menu.longitude)
     closeMenu()
     setParentId(null)
     setResourceId(null)
@@ -115,15 +115,16 @@ export function OrbatMapChrome({ nodes, types, editable, canMark, marked, onAdd,
         {!clustered && menu?.nodeIds?.length === 1 ? (
           <MenuItem onClick={() => setResourceId(menu.nodeIds[0])}>{byId.get(menu.nodeIds[0])?.name || 'This node'}</MenuItem>
         ) : null}
-        {!menu?.nodeIds?.length && chosenParent ? <ListSubheader>Add under {chosenParent.name} · {typeName(chosenParent)}</ListSubheader> : null}
-        {!menu?.nodeIds?.length && childTypes.map((type) => (
+        {editable && !menu?.nodeIds?.length && chosenParent ? <ListSubheader>Add under {chosenParent.name} · {typeName(chosenParent)}</ListSubheader> : null}
+        {editable && !menu?.nodeIds?.length && childTypes.map((type) => (
           <MenuItem key={type.id} onClick={() => beginAdd(chosenParent.id, type.id)}>{type.name}</MenuItem>
         ))}
-        {!menu?.nodeIds?.length ? <Divider /> : null}
-        {!menu?.nodeIds?.length ? <ListSubheader>Belongs to</ListSubheader> : null}
-        {!menu?.nodeIds?.length && candidates.map((node) => (
+        {editable && !menu?.nodeIds?.length ? <Divider /> : null}
+        {editable && !menu?.nodeIds?.length ? <ListSubheader>Belongs to</ListSubheader> : null}
+        {editable && !menu?.nodeIds?.length && candidates.map((node) => (
           <MenuItem key={node.id} selected={node.id === parentId} onClick={() => setParentId(node.id)}>{node.name} · {typeName(node)}</MenuItem>
         ))}
+        {!editable && !clustered ? <MenuItem disabled>Read only</MenuItem> : null}
       </Menu>
       <Menu
         open={Boolean(resource)}
@@ -140,6 +141,7 @@ export function OrbatMapChrome({ nodes, types, editable, canMark, marked, onAdd,
         ))}
         {canMark && resource && !marked.has(resource.id) ? <MenuItem onClick={() => { onMark(resource.id); setResourceId(null); closeMenu() }}>Mark as user</MenuItem> : null}
         {editable && resource?.parentId ? <MenuItem onClick={() => { onDelete(resource.id); setResourceId(null); closeMenu() }}>Delete</MenuItem> : null}
+        {!editable ? <MenuItem disabled>Read only</MenuItem> : null}
       </Menu>
     </>
   )

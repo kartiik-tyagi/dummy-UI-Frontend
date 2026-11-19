@@ -8,49 +8,13 @@ import Cluster from 'ol/source/Cluster'
 import Translate from 'ol/interaction/Translate'
 import { fromLonLat, toLonLat } from 'ol/proj'
 import { Circle, Fill, Icon, Stroke, Style, Text } from 'ol/style'
-import { httpBlob, httpText } from '../shared/api/http'
 import { useOrbatPicture } from '../features/orbat/useOrbatPicture'
-import { iconCssVars, resolveThemedSvg } from '../shared/icons/iconTheme'
-import { isSvgPath } from '../shared/icons/svgDocument'
-
-const iconUrls = new Map()
-
-function themeStamp(theme) {
-  return Object.entries(iconCssVars(theme)).map(([name, value]) => `${name}=${value}`).join(';')
-}
-
-function iconKey(path, theme) {
-  return `${path}\n${themeStamp(theme)}`
-}
-
-function loadIcon(path, theme) {
-  if (!path) return Promise.resolve('')
-  const key = iconKey(path, theme)
-  if (iconUrls.has(key)) return Promise.resolve(iconUrls.get(key))
-  const request = isSvgPath(path)
-    ? httpText('/icons/content', { query: { path } }).then((markup) => new Blob([resolveThemedSvg(markup, theme)], { type: 'image/svg+xml' }))
-    : httpBlob('/icons/content', { query: { path } })
-  return request
-    .then((blob) => {
-      const url = URL.createObjectURL(blob)
-      iconUrls.set(key, url)
-      return url
-    })
-    .catch(() => '')
-}
-
-function finite(value) {
-  const number = Number(value)
-  return Number.isFinite(number) ? number : null
-}
-
-function membersOf(feature) {
-  return feature?.get('features') || []
-}
+import { CLUSTER_DISTANCE, CLUSTER_MIN_DISTANCE, cachedIcon, finite, loadIcon, membersOf, zoomUntilOneSeparates } from './orbatMarkers'
 
 /** Draws the open ORBAT draft on the situation map. Nearby markers cluster as you zoom out. */
 export function OrbatLayer({ map }) {
-  const theme = useTheme()
+  const viewerTheme = useTheme()
+  const iconTheme = useOrbatPicture((state) => state.iconTheme)
   const active = useOrbatPicture((state) => state.active)
   const nodes = useOrbatPicture((state) => state.nodes)
   const colour = useOrbatPicture((state) => state.colour)
@@ -60,11 +24,11 @@ export function OrbatLayer({ map }) {
   useEffect(() => {
     if (!map) return undefined
     const source = new VectorSource()
-    const clusters = new Cluster({ distance: 42, minDistance: 18, source })
+    const clusters = new Cluster({ distance: CLUSTER_DISTANCE, minDistance: CLUSTER_MIN_DISTANCE, source })
     const layer = new VectorLayer({ source: clusters, zIndex: 20 })
     const translate = new Translate({
       layers: [layer],
-      filter: (feature) => membersOf(feature).length === 1,
+      filter: (feature) => membersOf(feature).length === 1 && useOrbatPicture.getState().editable,
     })
     map.addLayer(layer)
     map.addInteraction(translate)
@@ -78,15 +42,24 @@ export function OrbatLayer({ map }) {
       armed = false
       const hit = map.forEachFeatureAtPixel(event.pixel, (feature) => feature, { layerFilter: (item) => item === layer })
       const members = membersOf(hit)
+      if (members.length > 1) {
+        const zoom = zoomUntilOneSeparates(map.getView(), source.getFeatures(), members)
+        if (zoom == null) return
+        const view = map.getView()
+        view.cancelAnimations()
+        view.animate({ center: hit.getGeometry().getCoordinates(), zoom, duration: 280 })
+        return
+      }
       if (members.length === 1) {
         useOrbatPicture.getState().requestSelect(members[0].get('nodeId'))
         return
       }
-      if (!useOrbatPicture.getState().placeTypeId) return
+      if (!useOrbatPicture.getState().editable || !useOrbatPicture.getState().placeTypeId) return
       const [longitude, latitude] = toLonLat(event.coordinate)
       useOrbatPicture.getState().requestPlace(longitude, latitude)
     }
     const onEnd = (event) => {
+      if (!useOrbatPicture.getState().editable) return
       event.features.forEach((feature) => {
         const member = membersOf(feature)[0]
         if (!member) return
@@ -145,9 +118,11 @@ export function OrbatLayer({ map }) {
     source.clear()
     if (!active) return
     const placed = nodes.filter((node) => finite(node.latitude) != null && finite(node.longitude) != null)
-    const missing = [...new Set(placed.map((node) => node.iconPath).filter((path) => path && !iconUrls.has(iconKey(path, theme))))]
+    const missing = iconTheme
+      ? [...new Set(placed.map((node) => node.iconPath).filter((path) => path && !cachedIcon(path, iconTheme)))]
+      : []
     if (missing.length) {
-      Promise.all(missing.map((path) => loadIcon(path, theme))).then(() => setIconsReady((value) => value + 1))
+      Promise.all(missing.map((path) => loadIcon(path, iconTheme))).then(() => setIconsReady((value) => value + 1))
     }
     const byId = new Map(placed.map((node) => [node.id, node]))
     placed.forEach((node) => {
@@ -161,34 +136,34 @@ export function OrbatLayer({ map }) {
         return new Style({
           image: new Circle({
             radius: 15,
-            fill: new Fill({ color: theme.palette.primary.main }),
-            stroke: new Stroke({ color: theme.palette.background.paper, width: 2 }),
+            fill: new Fill({ color: viewerTheme.palette.primary.main }),
+            stroke: new Stroke({ color: viewerTheme.palette.background.paper, width: 2 }),
           }),
           text: new Text({
             text: String(members.length),
             font: '600 12px Roboto',
-            fill: new Fill({ color: theme.palette.primary.contrastText }),
+            fill: new Fill({ color: viewerTheme.palette.primary.contrastText }),
           }),
         })
       }
       const node = byId.get(members[0]?.get('nodeId'))
       if (!node) return null
-      const icon = node.iconPath ? iconUrls.get(iconKey(node.iconPath, theme)) : ''
+      const icon = iconTheme && node.iconPath ? cachedIcon(node.iconPath, iconTheme) : ''
       return new Style({
         image: icon
           ? new Icon({ src: icon, scale: 1.5, anchor: [0.5, 0.5] })
-          : new Circle({ radius: 6, fill: new Fill({ color: colour }), stroke: new Stroke({ color: theme.palette.background.paper, width: 2 }) }),
+          : new Circle({ radius: 6, fill: new Fill({ color: colour }), stroke: new Stroke({ color: viewerTheme.palette.background.paper, width: 2 }) }),
         text: new Text({
           text: node.short_name || node.name,
           offsetY: -16,
           font: '12px Roboto',
-          fill: new Fill({ color: theme.palette.text.primary }),
-          stroke: new Stroke({ color: theme.palette.background.paper, width: 3 }),
+          fill: new Fill({ color: viewerTheme.palette.text.primary }),
+          stroke: new Stroke({ color: viewerTheme.palette.background.paper, width: 3 }),
         }),
       })
     })
     map.getTargetElement().style.cursor = placeTypeId ? 'crosshair' : ''
-  }, [map, active, nodes, colour, placeTypeId, iconsReady, theme])
+  }, [map, active, nodes, colour, placeTypeId, iconsReady, iconTheme, viewerTheme])
 
   return null
 }

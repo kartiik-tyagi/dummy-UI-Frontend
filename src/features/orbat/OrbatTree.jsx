@@ -83,7 +83,7 @@ function TreeRow({ node, depth, ctx }) {
         >
           {open ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
         </IconButton>
-        {type?.iconPath ? <IconPreview path={type.iconPath} size={20} /> : <Box sx={{ width: 20, flexShrink: 0 }} aria-hidden />}
+        {(node.iconPath || type?.iconPath) ? <IconPreview path={node.iconPath || type.iconPath} size={20} theme={ctx.iconTheme} /> : <Box sx={{ width: 20, flexShrink: 0 }} aria-hidden />}
         <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }} title={type ? `${node.name} (${type.name})` : node.name}>
           {node.name}
         </Typography>
@@ -105,7 +105,7 @@ function TreeRow({ node, depth, ctx }) {
  * Hierarchical ORBAT tree (no extra dependency): expand/collapse, select, context menu, drag to reparent,
  * keyboard (arrows, Enter/F2 rename, Delete, Insert/+ add child, Shift+F10 menu).
  */
-export function OrbatTree({ nodes, nodeTypes, selectedId, onSelect, expanded, setExpanded, editable, onContextMenu, onMove, onAction, userByNode }) {
+export function OrbatTree({ nodes, nodeTypes, selectedId, onSelect, expanded, setExpanded, editable, onContextMenu, onMove, onAction, userByNode, iconTheme }) {
   const { children, roots, byId } = useMemo(() => indexNodes(nodes), [nodes])
   const [dragId, setDragId] = useState(null)
   const [overId, setOverId] = useState(null)
@@ -202,6 +202,7 @@ export function OrbatTree({ nodes, nodeTypes, selectedId, onSelect, expanded, se
     dragId,
     overId,
     userByNode,
+    iconTheme,
     setDragId,
     setOverId,
     toggle,

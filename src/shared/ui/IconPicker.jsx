@@ -61,8 +61,9 @@ export function forgetIconPreview(path) {
 }
 
 /** SVG is inlined so var(--wp-*) paints follow the active theme. Raster files stay images. */
-export function IconPreview({ path, size = 32, alt = '' }) {
-  const theme = useTheme()
+export function IconPreview({ path, size = 32, alt = '', theme: themeOverride = null }) {
+  const viewerTheme = useTheme()
+  const theme = themeOverride || viewerTheme
   const epoch = usePreviewEpoch()
   const hostRef = useRef(null)
   const [entry, setEntry] = useState(() => (path ? readPreview(path) : null))
@@ -159,7 +160,7 @@ function fileNameOf(path) {
  * Dialog that lists the icon folders (GET /icons), previews files and returns the chosen relative path.
  * Label edits need MANAGE_ICONS.
  */
-export function IconPicker({ open, value = '', onClose, onSelect }) {
+export function IconPicker({ open, value = '', onClose, onSelect, theme = null }) {
   const canUpload = useSessionStore((state) => hasFunctionality(state.session?.functionalities, FunctionalityCodes.MANAGE_ICONS))
   const [tree, setTree] = useState(null)
   const [folder, setFolder] = useState('')
@@ -307,7 +308,7 @@ export function IconPicker({ open, value = '', onClose, onSelect }) {
                         >
                           {selected ? <CheckCircleRoundedIcon sx={{ position: 'absolute', top: 4, right: 4, fontSize: 18, color: 'primary.main' }} /> : null}
                           <Box sx={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <IconPreview path={file.path} size={40} alt={file.label || file.name} />
+                            <IconPreview path={file.path} size={40} alt={file.label || file.name} theme={theme} />
                           </Box>
                           <Typography variant="caption" noWrap sx={{ maxWidth: '100%', fontWeight: selected ? 600 : 400 }}>{file.label || file.name}</Typography>
                         </Button>
@@ -361,7 +362,7 @@ export function IconPicker({ open, value = '', onClose, onSelect }) {
           {chosen ? (
             <>
               <Box sx={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <IconPreview path={chosen} size={22} alt="" />
+                <IconPreview path={chosen} size={22} alt="" theme={theme} />
               </Box>
               <Typography variant="body2" color="text.primary" noWrap sx={{ minWidth: 0 }}>{chosenFile?.label || fileNameOf(chosen)}</Typography>
             </>
@@ -423,7 +424,7 @@ function loadIconLabels(userId, force = false) {
 }
 
 /** A small button that shows the chosen icon and the signed-in user's label (never the file path). */
-export function IconField({ value, onChange, label = 'Icon' }) {
+export function IconField({ value, onChange, label = 'Icon', theme = null }) {
   const [open, setOpen] = useState(false)
   const userId = useSessionStore((state) => state.session?.me?.userId ?? null)
   const [labels, setLabels] = useState(cacheFresh(userId) ? iconLabelCache : null)
@@ -445,12 +446,13 @@ export function IconField({ value, onChange, label = 'Icon' }) {
   const display = value ? (labels && labels[value]) || fileNameOf(value) : ''
   return (
     <>
-      <Button size="small" variant="outlined" onClick={() => setOpen(true)} startIcon={<IconPreview path={value} size={20} />} sx={{ textTransform: 'none', justifyContent: 'flex-start' }}>
+      <Button size="small" variant="outlined" onClick={() => setOpen(true)} startIcon={<IconPreview path={value} size={20} theme={theme} />} sx={{ textTransform: 'none', justifyContent: 'flex-start' }}>
         {value ? display : `Choose ${label.toLowerCase()}`}
       </Button>
       <IconPicker
         open={open}
         value={value}
+        theme={theme}
         onClose={() => setOpen(false)}
         onSelect={(path) => {
           onChange(path)

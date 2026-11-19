@@ -3,8 +3,11 @@ import { Box, Typography } from '@mui/material'
 import { MapWorkbench } from '../../components/MapWorkbench'
 import SituationMap from '../../components/SituationMap'
 import { OrbatLayer } from '../../components/OrbatLayer'
+import { SituationLayer } from '../../components/SituationLayer.jsx'
 import { useDirectoryStore } from '../../features/directory/useDirectoryStore'
+import { useSituation } from '../../features/situation/useSituation'
 import { useSessionStore } from '../../features/session/useSessionStore'
+import { get } from '../api/http'
 
 function formatCoordinate(value) {
   return Number(value).toFixed(4)
@@ -35,6 +38,36 @@ export function MapStage({ readout = 'bar', onReadout }) {
   const [map, setMap] = useState(null)
   const onReadoutRef = useRef(onReadout)
   onReadoutRef.current = onReadout
+  const situationRevision = useSituation((state) => state.revision)
+  const userId = session?.me?.userId
+  const playingOrbatId = session?.me?.playingOrbatId
+  const canWork = session?.me?.canWork
+
+  useEffect(() => {
+    if (!session) return undefined
+    let live = true
+    let last = 0
+    const pull = (force) => {
+      const now = Date.now()
+      if (!force && now - last < 1500) return
+      last = now
+      get('/situation')
+        .then((picture) => { if (live) useSituation.getState().setPicture(picture) })
+        .catch(() => { if (live) useSituation.getState().setPicture(null) })
+    }
+    pull(true)
+    const onVisible = () => {
+      if (document.visibilityState === 'hidden') return
+      pull(false)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      live = false
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+  }, [session, userId, playingOrbatId, canWork, situationRevision])
 
   useEffect(() => {
     onReadoutRef.current?.({
@@ -78,6 +111,7 @@ export function MapStage({ readout = 'bar', onReadout }) {
   return (
     <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        <SituationLayer map={map} />
         <OrbatLayer map={map} />
         <SituationMap
           view={session.mapView}

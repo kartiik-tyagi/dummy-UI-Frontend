@@ -3,8 +3,11 @@ import { create } from 'zustand'
 /** The ORBAT draft the map draws. The panel publishes it and clears it on close. */
 export const useOrbatPicture = create((set) => ({
   active: false,
+  editable: false,
+  editingId: null,
   nodes: [],
   colour: '#2f6fed',
+  iconTheme: null,
   placeTypeId: null,
   placeToken: 0,
   place: null,
@@ -13,8 +16,15 @@ export const useOrbatPicture = create((set) => ({
   selectToken: 0,
   selectedId: null,
   parentId: null,
-  show: (nodes, colour) => set({ active: true, nodes, colour: colour || '#2f6fed' }),
-  hide: () => set({ active: false, nodes: [], placeTypeId: null, hover: null, menu: null }),
+  show: (nodes, colour, editable, iconTheme, editingId = null) => set({
+    active: true,
+    nodes,
+    colour: colour || '#2f6fed',
+    editable: Boolean(editable),
+    iconTheme: iconTheme || null,
+    editingId,
+  }),
+  hide: () => set({ active: false, editable: false, editingId: null, nodes: [], iconTheme: null, placeTypeId: null, hover: null, menu: null }),
   setPlaceType: (placeTypeId) => set({ placeTypeId }),
   requestPlace: (longitude, latitude) => set((state) => ({
     place: { longitude, latitude, nodeTypeId: state.placeTypeId, parentId: state.parentId },

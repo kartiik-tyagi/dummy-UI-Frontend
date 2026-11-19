@@ -12,7 +12,7 @@ function emptyValues(type, preset) {
 }
 
 /** One form for adding or editing a node. Fields come from the node type catalogue. */
-export function NodeFormDialog({ open, title, types = [], parent, initial, preset, presetTypeId, onClose, onSubmit }) {
+export function NodeFormDialog({ open, title, types = [], parent, initial, preset, presetTypeId, iconTheme, onClose, onSubmit }) {
   const parentType = types.find((type) => String(type.id) === String(parent?.nodeTypeId)) || null
   const choices = useMemo(() => (initial ? types.filter((type) => String(type.id) === String(initial.nodeTypeId)) : allowedChildren(types, parentType)), [types, parentType, initial])
   const [typeId, setTypeId] = useState('')
@@ -81,7 +81,7 @@ export function NodeFormDialog({ open, title, types = [], parent, initial, prese
               <MenuItem key={item.id} value={String(item.id)}>{item.name}</MenuItem>
             ))}
           </TextField>
-          <IconField label="Icon" value={iconPath} onChange={setIconPath} />
+          <IconField label="Icon" value={iconPath} onChange={setIconPath} theme={iconTheme} />
           <TextField required size="small" label="Name" value={values.name || ''} onChange={(event) => setField('name', event.target.value)} />
           {fieldsOf(type).map((field) => field.type === 'choice' ? (
             <TextField key={field.key} select required={field.required} size="small" label={field.label} value={values[field.key] ?? ''} onChange={(event) => setField(field.key, event.target.value)}>

@@ -32,9 +32,11 @@ import { asTheme } from '../admin/themeChoices'
 import { NodeFormDialog } from './NodeFormDialog'
 import { childAllowed } from './nodeRules'
 import { OrbatMapChrome } from './OrbatMapChrome'
+import { refreshSituation } from '../situation/useSituation'
 import { useOrbatPicture } from './useOrbatPicture'
 import { swatches } from '../../shared/theme/swatches'
-import { swatchForColour } from '../../shared/api/mappers'
+import { swatchForColour, themeFromEntity } from '../../shared/api/mappers'
+import { createAppTheme } from '../../shared/theme/createAppTheme'
 import { IconField } from '../../shared/ui/IconPicker'
 import { OrbatTree } from './OrbatTree'
 import { addChild, descendantIds, indexNodes, nodesOf, pathTo, removeSubtree, reparent, sameNodes, updateNode } from './orbatDoc'
@@ -201,6 +203,7 @@ export default function OrbatPanel() {
   const [games, setGames] = useState(() => (session?.games || EMPTY_LIST).filter((item) => item.scenarioId === (session?.activeScenarioId || '')))
   const [gameId, setGameId] = useState(session?.activeGame?.id || '')
   const [orbats, setOrbats] = useState(EMPTY_LIST)
+  const [alliances, setAlliances] = useState(EMPTY_LIST)
   const [orbatId, setOrbatId] = useState('')
   const [standard, setStandard] = useState(undefined)
 
@@ -220,10 +223,20 @@ export default function OrbatPanel() {
   const serverNodes = useMemo(() => nodesOf(record?.orbatJson), [record])
   const dirty = Boolean(record) && !sameNodes(nodes, serverNodes)
   const status = statusOf(record)
-  const editable = tab === 'standard' ? canStandard && Boolean(record) : (canPlaying || canAlliance) && Boolean(record)
+  const canRevise = tab === 'playing' && (canPlaying || canAlliance) && Boolean(record)
+  const editable = tab === 'standard' ? canStandard && Boolean(record) : canRevise && status !== 'finalized'
 
   const sidesById = useMemo(() => new Map((sides || []).map((side) => [side.id, side])), [sides])
   const countrySides = useMemo(() => (sides || []).filter((side) => side.kind === 'country'), [sides])
+  const takenSideIds = useMemo(() => {
+    const ids = new Set(orbats.map((item) => Number(item.sideId)))
+    alliances.forEach((item) => (item.memberSideIds || []).forEach((id) => ids.add(Number(id))))
+    return ids
+  }, [alliances, orbats])
+  const freeCountries = useMemo(
+    () => countrySides.filter((side) => !takenSideIds.has(Number(side.id))),
+    [countrySides, takenSideIds],
+  )
   const index = useMemo(() => indexNodes(nodes), [nodes])
   const selected = index.byId.get(selectedId) || null
   const userByNode = useMemo(() => markedNodes, [markedNodes])
@@ -316,13 +329,15 @@ export default function OrbatPanel() {
   const loadPlaying = useCallback(async (keepId) => {
     if (!gameId) {
       setOrbats(EMPTY_LIST)
+      setAlliances(EMPTY_LIST)
       return
     }
     setLoading(true)
     setLoadError('')
     try {
-      const rows = await api.listPlayingOrbats(gameId)
+      const [rows, allianceRows] = await Promise.all([api.listPlayingOrbats(gameId), api.listAlliances(gameId)])
       setOrbats(rows)
+      setAlliances(allianceRows)
       setOrbatId((current) => {
         const wanted = keepId ?? current
         if (wanted && rows.some((row) => String(row.id) === String(wanted))) return String(wanted)
@@ -330,6 +345,7 @@ export default function OrbatPanel() {
       })
     } catch (error) {
       setOrbats(EMPTY_LIST)
+      setAlliances(EMPTY_LIST)
       setLoadError(error?.message || 'The playing ORBATs could not be loaded.')
     } finally {
       setLoading(false)
@@ -387,15 +403,21 @@ export default function OrbatPanel() {
   const moveToken = useOrbatPicture((state) => state.moveToken)
   const selectToken = useOrbatPicture((state) => state.selectToken)
   const pictureSideId = tab === 'standard' ? Number(sideId) : record?.sideId
-  const pictureColour = sidesById.get(pictureSideId)?.colour || '#2f6fed'
+  const pictureSide = sidesById.get(pictureSideId) || sidesById.get(Number(pictureSideId)) || sidesById.get(String(pictureSideId))
+  const pictureColour = pictureSide?.colour || '#2f6fed'
+  const pictureTheme = useMemo(() => {
+    const row = themes.find((theme) => String(theme.id) === String(pictureSide?.themeId))
+    return row ? createAppTheme(themeFromEntity(row)) : null
+  }, [themes, pictureSide?.themeId])
+  const editingId = tab === 'playing' && record ? record.id : null
 
   useEffect(() => {
     const pictured = nodes.map((node) => {
       const type = nodeTypes.get(node.nodeTypeId) || nodeTypes.get(Number(node.nodeTypeId))
       return { ...node, iconPath: node.iconPath || type?.iconPath || '' }
     })
-    useOrbatPicture.getState().show(pictured, pictureColour)
-  }, [nodes, pictureColour, nodeTypes])
+    useOrbatPicture.getState().show(pictured, pictureColour, editable, pictureTheme, editingId)
+  }, [nodes, pictureColour, nodeTypes, editable, pictureTheme, editingId])
 
   useEffect(() => {
     useOrbatPicture.setState({ parentId: selectedId })
@@ -474,7 +496,10 @@ export default function OrbatPanel() {
       const body = { orbatJson: { ...(record.orbatJson || {}), nodes }, metadata, version: record.version }
       const saved = tab === 'standard' ? await api.saveStandardOrbat(sideId, { ...body, metadata: record.metadata || undefined }) : await api.savePlayingOrbat(gameId, record.id, body)
       if (tab === 'standard') setStandard(saved)
-      else setOrbats((current) => current.map((item) => (item.id === saved.id ? saved : item)))
+      else {
+        setOrbats((current) => current.map((item) => (item.id === saved.id ? saved : item)))
+        refreshSituation()
+      }
       push(metadata?.status === 'finalized' ? 'ORBAT finalized.' : 'ORBAT saved.', 'success')
       return saved
     } catch (error) {
@@ -546,6 +571,7 @@ export default function OrbatPanel() {
     const created = await api.replicatePlayingOrbat(gameId, id)
     setDialog(null)
     push(`Playing ORBAT for ${created.name} created.`, 'success')
+    refreshSituation()
     await loadPlaying(created.id)
   }
 
@@ -553,6 +579,7 @@ export default function OrbatPanel() {
     const created = await api.createAlliance(gameId, body)
     setDialog(null)
     push(`Alliance ${created.side?.name || ''} created.`, 'success')
+    refreshSituation()
     await loadPlaying(created.playingOrbatId)
   }
 
@@ -561,10 +588,30 @@ export default function OrbatPanel() {
     if (saved) setDialog(null)
   }
 
+  const reopen = async () => {
+    if (!record) return
+    setSaving(true)
+    setSaveError('')
+    try {
+      const saved = await api.savePlayingOrbat(gameId, record.id, { metadata: { status: 'draft' }, version: record.version })
+      setOrbats((current) => current.map((item) => (item.id === saved.id ? saved : item)))
+      setDialog(null)
+      refreshSituation()
+      push('ORBAT is a draft again. Finalize it when the edits are done.', 'success')
+    } catch (error) {
+      const message = error?.message || 'The playing ORBAT could not be re-edited.'
+      setSaveError(message)
+      push(message, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const removeOrbat = async () => {
     try {
       await api.deletePlayingOrbat(gameId, record.id)
       push('Playing ORBAT deleted.', 'success')
+      refreshSituation()
       setDialog(null)
       setOrbatId('')
       await loadPlaying('')
@@ -581,7 +628,7 @@ export default function OrbatPanel() {
   if (!showStandard && !showPlaying) return <Caption>Your role does not include ORBAT.</Caption>
   if (!sides && !loadError) return <LoadingState label="Opening ORBAT" />
 
-  const replicaSides = countrySides.filter((side) => !orbats.some((item) => item.sideId === side.id))
+  const replicaSides = freeCountries
   const delNode = dialog?.kind === 'delete' ? index.byId.get(dialog.id) : null
   const delCount = delNode ? descendantIds(nodes, delNode.id).size : 0
 
@@ -683,6 +730,7 @@ export default function OrbatPanel() {
           <Chip size="small" label={`v${record.version}`} variant="outlined" />
           {tab === 'playing' ? <Chip size="small" label={status} color={status === 'finalized' ? 'success' : 'default'} /> : null}
           {dirty ? <Chip size="small" label="Unsaved" color="warning" /> : null}
+          {tab === 'playing' && status === 'finalized' ? <Caption>Re-edit to change it. Assigned users cannot work again until you finalize.</Caption> : null}
           <Box sx={{ flex: 1 }} />
           {editable ? (
             <>
@@ -690,11 +738,14 @@ export default function OrbatPanel() {
               <Button size="small" variant="contained" disabled={!dirty || saving} onClick={() => save(undefined)}>{saving ? 'Saving' : 'Save'}</Button>
             </>
           ) : null}
-          {tab === 'playing' && editable ? (
-            <>
-              <Button size="small" color="success" variant="outlined" disabled={saving || (status === 'finalized' && !dirty)} onClick={() => setDialog({ kind: 'finalize' })}>Finalize</Button>
-              <Button size="small" color="error" disabled={saving} onClick={() => setDialog({ kind: 'delete-orbat' })}>Delete</Button>
-            </>
+          {canRevise && status === 'finalized' ? (
+            <Button size="small" variant="outlined" disabled={saving} onClick={() => setDialog({ kind: 'reopen' })}>Re-edit</Button>
+          ) : null}
+          {canRevise && status !== 'finalized' ? (
+            <Button size="small" color="success" variant="outlined" disabled={saving} onClick={() => setDialog({ kind: 'finalize' })}>Finalize</Button>
+          ) : null}
+          {canRevise ? (
+            <Button size="small" color="error" disabled={saving} onClick={() => setDialog({ kind: 'delete-orbat' })}>Delete</Button>
           ) : null}
         </Stack>
       ) : null}
@@ -730,6 +781,7 @@ export default function OrbatPanel() {
               onMove={moveNode}
               onAction={onTreeAction}
               userByNode={userByNode}
+              iconTheme={pictureTheme}
             />
           ) : (
             <Box sx={{ p: 2 }}><Caption>This ORBAT has no nodes.</Caption></Box>
@@ -759,6 +811,7 @@ export default function OrbatPanel() {
         initial={dialog?.kind === 'edit' ? index.byId.get(dialog?.id) : null}
         preset={dialog?.preset}
         presetTypeId={dialog?.presetTypeId}
+        iconTheme={pictureTheme}
         onClose={() => setDialog(null)}
         onSubmit={commitNode}
       />
@@ -802,7 +855,7 @@ export default function OrbatPanel() {
       />
       <ForceDialog open={dialog?.kind === 'force'} themes={themes} onClose={() => setDialog(null)} onSubmit={createForce} />
       <ReplicaDialog open={dialog?.kind === 'replica'} sides={replicaSides} onClose={() => setDialog(null)} onSubmit={replicate} />
-      <AllianceDialog open={dialog?.kind === 'alliance'} sides={countrySides} themes={themes} onClose={() => setDialog(null)} onSubmit={createAlliance} />
+      <AllianceDialog open={dialog?.kind === 'alliance'} sides={freeCountries} themes={themes} onClose={() => setDialog(null)} onSubmit={createAlliance} />
       <ConfirmDialog
         open={dialog?.kind === 'finalize'}
         title="Finalize playing ORBAT"
@@ -812,6 +865,16 @@ export default function OrbatPanel() {
         error={saveError}
         onClose={() => setDialog(null)}
         onConfirm={finalize}
+      />
+      <ConfirmDialog
+        open={dialog?.kind === 'reopen'}
+        title="Re-edit playing ORBAT"
+        message={`Return ${record?.name || 'this ORBAT'} to draft? Assigned users cannot work until you finalize it again.`}
+        confirmLabel="Re-edit"
+        busy={saving}
+        error={saveError}
+        onClose={() => setDialog(null)}
+        onConfirm={reopen}
       />
       <ConfirmDialog
         open={dialog?.kind === 'delete-orbat'}
